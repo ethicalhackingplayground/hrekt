@@ -1,0 +1,23 @@
+[package]
+name = "rekt"
+version = "0.1.0"
+edition = "2021"
+authors = ["zoid", "<krypt0mux@gmail.com>"]
+description = "A really fast http prober."
+license = "MIT"
+repository = "https://github.com/ethicalhackingplayground/rekt"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+governor = "0.5.1"
+futures = "0.3.26"
+futures-util = "0.3.26"
+tokio = { version = "^1.2.0", features = ["full"] }
+spmc = "0.3.0"
+clap =  { version = "^3.0.0-beta.2" }
+regex = "1.7.3"
+tokio-dns-unofficial = "0.4.0"
+async-std = "1.12.0"
+openssl = { version = "0.10.45", features = ["vendored"] }
+reqwest = { version = "0.11.14", features = ["native-tls", "blocking"] }
