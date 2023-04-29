@@ -1,4 +1,4 @@
-# rekt
+# hrekt
 A really fast http prober.
 
 ### Installation
