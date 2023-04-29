@@ -21,7 +21,7 @@ pub struct Job {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // parse the cli arguments
-    let matches = App::new("rekt")
+    let matches = App::new("hrekt")
         .version("0.1.3")
         .author("Blake Jacobs <krypt0mux@gmail.com>")
         .about("really fast http prober")

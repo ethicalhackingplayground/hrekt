@@ -3,14 +3,14 @@ A really fast http prober.
 
 ### Installation
 ```rust
-cargo install rekt
+cargo install hrekt
 ```
 
 ### Usage
 
 ```bash
 USAGE:
-    rekt [OPTIONS]
+    hrekt [OPTIONS]
 
 OPTIONS:
     -c, --rate <rate>                  Maximum in-flight requests per second [default: 1000]
@@ -25,5 +25,5 @@ OPTIONS:
 ```
 
 ```bash
-cat subs.txt | rekt
+cat subs.txt | hrekt
 ```
