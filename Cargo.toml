@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["zoid", "<krypt0mux@gmail.com>"]
 description = "A really fast http prober."
 license = "MIT"
-repository = "https://github.com/ethicalhackingplayground/rekt"
+repository = "https://github.com/ethicalhackingplayground/hrekt"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
