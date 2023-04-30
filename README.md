@@ -54,17 +54,20 @@ OPTIONS:
     -p, --ports <ports>
             the ports to probe default is (80,443) [default: 80,443]
 
-        --title
-            display the page titles
-
-        --tech-detect
-            display the technology used
-
     -b, --body-regex <body-regex>
             regex to be used to match a specific pattern in the response [default: ]
 
     -h, --header-regex <header-regex>
             regex to be used to match a specific pattern in the response [default: ]
+
+    -i, --title
+            display the page titles
+
+    -d, --tech-detect
+            display the technology used
+
+    -q, --silent
+            display the technology used
 
         --help
             Print help information
