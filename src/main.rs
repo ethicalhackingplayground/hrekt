@@ -1,23 +1,73 @@
 use async_std::io;
 use async_std::io::prelude::*;
-use std::{error::Error, time::Duration};
-
-use regex;
-
 use clap::{App, Arg};
+use colored::Colorize;
 use futures::{stream::FuturesUnordered, StreamExt};
 use governor::{Quota, RateLimiter};
+use port_selector;
+use regex;
 use regex::Regex;
 use reqwest::redirect;
+use std::{error::Error, time::Duration};
 use tokio::{net, runtime::Builder, task};
+use wappalyzer;
 
 #[derive(Clone, Debug)]
 pub struct Job {
     host: Option<String>,
-    regex: Option<String>,
+    body_regex: Option<String>,
+    header_regex: Option<String>,
     ports: Option<String>,
+    display_title: Option<bool>,
+    display_tech: Option<bool>,
 }
 
+/**
+ * Print the ascii banner
+ */
+fn print_banner() {
+    const BANNER: &str = r#"   
+  __  __     ______     ______     __  __     ______  
+ /\ \_\ \   /\  == \   /\  ___\   /\ \/ /    /\__  _\ 
+ \ \  __ \  \ \  __<   \ \  __\   \ \  _"-.  \/_/\ \/ 
+  \ \_\ \_\  \ \_\ \_\  \ \_____\  \ \_\ \_\    \ \_\ 
+   \/_/\/_/   \/_/ /_/   \/_____/   \/_/\/_/     \/_/ 
+                                                                                                                     
+                    v0.1.1                     
+    "#;
+    eprintln!("{}", BANNER.bold().cyan());
+    eprintln!(
+        "{}{}{} {}",
+        "[".bold().white(),
+        "WRN".bold().yellow(),
+        "]".bold().white(),
+        "Use with caution. You are responsible for your actions"
+            .bold()
+            .white()
+    );
+    eprintln!(
+        "{}{}{} {}",
+        "[".bold().white(),
+        "WRN".bold().yellow(),
+        "]".bold().white(),
+        "Developers assume no liability and are not responsible for any misuse or damage."
+            .bold()
+            .white()
+    );
+    eprintln!(
+        "{}{}{} {}\n",
+        "[".bold().white(),
+        "WRN".bold().yellow(),
+        "]".bold().white(),
+        "By using hrekt, you also agree to the terms of the APIs used."
+            .bold()
+            .white()
+    );
+}
+
+/**
+ * The main entry point
+ */
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // parse the cli arguments
@@ -27,7 +77,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         .about("really fast http prober")
         .arg(
             Arg::with_name("rate")
-                .short('c')
+                .short('r')
                 .long("rate")
                 .takes_value(true)
                 .default_value("1000")
@@ -36,21 +86,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         )
         .arg(
             Arg::with_name("concurrency")
-                .short('t')
+                .short('c')
                 .long("concurrency")
                 .default_value("100")
                 .takes_value(true)
                 .display_order(3)
                 .help("The amount of concurrent requests"),
-        )
-        .arg(
-            Arg::with_name("regex")
-                .short('r')
-                .long("regex")
-                .default_value("")
-                .takes_value(true)
-                .display_order(6)
-                .help("regex to be used to match a specific pattern in the response"),
         )
         .arg(
             Arg::with_name("ports")
@@ -60,6 +101,48 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 .takes_value(true)
                 .display_order(6)
                 .help("the ports to probe default is (80,443)"),
+        )
+        .arg(
+            Arg::with_name("title")
+                .long("title")
+                .short('i')
+                .takes_value(false)
+                .display_order(9)
+                .help("display the page titles"),
+        )
+        .arg(
+            Arg::with_name("tech-detect")
+                .long("tech-detect")
+                .short('d')
+                .takes_value(false)
+                .display_order(10)
+                .help("display the technology used"),
+        )
+        .arg(
+            Arg::with_name("silent")
+                .short('q')
+                .long("silent")
+                .takes_value(false)
+                .display_order(10)
+                .help("display the technology used"),
+        )
+        .arg(
+            Arg::with_name("body-regex")
+                .long("body-regex")
+                .short('b')
+                .default_value("")
+                .takes_value(true)
+                .display_order(7)
+                .help("regex to be used to match a specific pattern in the response"),
+        )
+        .arg(
+            Arg::with_name("header-regex")
+                .long("header-regex")
+                .short('h')
+                .default_value("")
+                .takes_value(true)
+                .display_order(8)
+                .help("regex to be used to match a specific pattern in the response"),
         )
         .arg(
             Arg::with_name("timeout")
@@ -81,6 +164,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         )
         .get_matches();
 
+    let silent = matches.is_present("silent");
+    if !silent {
+        print_banner();
+    }
+
     let rate = match matches.value_of("rate").unwrap().parse::<u32>() {
         Ok(n) => n,
         Err(_) => {
@@ -89,8 +177,13 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         }
     };
 
-    let regex = match matches.value_of("regex").unwrap().parse::<String>() {
-        Ok(regex) => regex,
+    let body_regex = match matches.value_of("body-regex").unwrap().parse::<String>() {
+        Ok(body_regex) => body_regex,
+        Err(_) => "".to_string(),
+    };
+
+    let header_regex = match matches.value_of("header-regex").unwrap().parse::<String>() {
+        Ok(header_regex) => header_regex,
         Err(_) => "".to_string(),
     };
 
@@ -98,6 +191,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         Ok(ports) => ports,
         Err(_) => "".to_string(),
     };
+
+    let display_title = matches.is_present("title");
+    let display_tech = matches.is_present("tech-detect");
 
     let concurrency = match matches.value_of("concurrency").unwrap().parse::<u32>() {
         Ok(n) => n,
@@ -129,7 +225,18 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     // job channels
     let (job_tx, job_rx) = spmc::channel::<Job>();
-    rt.spawn(async move { send_url(job_tx, regex, ports, rate).await });
+    rt.spawn(async move {
+        send_url(
+            job_tx,
+            body_regex,
+            header_regex,
+            ports,
+            display_title,
+            display_tech,
+            rate,
+        )
+        .await
+    });
 
     // process the jobs
     let workers = FuturesUnordered::new();
@@ -148,10 +255,16 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     Ok(())
 }
 
+/**
+ * Send the urls to be processed by the workers
+ */
 async fn send_url(
     mut tx: spmc::Sender<Job>,
-    regex: String,
+    body_regex: String,
+    header_regex: String,
     ports: String,
+    display_title: bool,
+    display_tech: bool,
     rate: u32,
 ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     //set rate limit
@@ -163,8 +276,11 @@ async fn send_url(
         let last_input = line.unwrap();
         let msg = Job {
             host: Some(last_input.to_string().clone()),
-            regex: Some(regex.clone()),
+            body_regex: Some(body_regex.clone()),
+            header_regex: Some(header_regex.clone()),
             ports: Some(ports.to_string()),
+            display_title: Some(display_title.clone()),
+            display_tech: Some(display_tech.clone()),
         };
         if let Err(err) = tx.send(msg) {
             eprintln!("{}", err.to_string());
@@ -175,7 +291,9 @@ async fn send_url(
     Ok(())
 }
 
-// this function will test perform the aem detection
+/**
+ * Perform the HTTP probing operation.
+ */
 pub async fn run_detector(rx: spmc::Receiver<Job>, timeout: usize) {
     let mut headers = reqwest::header::HeaderMap::new();
     headers.insert(
@@ -197,8 +315,11 @@ pub async fn run_detector(rx: spmc::Receiver<Job>, timeout: usize) {
 
     while let Ok(job) = rx.recv() {
         let job_host: String = job.host.unwrap();
-        let job_regex = job.regex.unwrap();
+        let job_body_regex = job.body_regex.unwrap();
+        let job_header_regex = job.header_regex.unwrap();
         let job_ports = job.ports.unwrap();
+        let job_title = job.display_title.unwrap();
+        let job_tech = job.display_tech.unwrap();
         let mut resolved_domains: Vec<String> = vec![String::from("")];
 
         let ports_array = job_ports.split(",");
@@ -215,6 +336,7 @@ pub async fn run_detector(rx: spmc::Receiver<Job>, timeout: usize) {
         }
         for domain in &resolved_domains {
             let domain_result = domain.clone();
+
             // Iterate over the resolved IP addresses and send HTTP requests
             let get = client.get(domain);
             let req = match get.build() {
@@ -229,40 +351,107 @@ pub async fn run_detector(rx: spmc::Receiver<Job>, timeout: usize) {
                     continue;
                 }
             };
+
+            let mut header_match = String::from("");
+            let headers = resp.headers();
+            for (k, v) in headers.iter() {
+                let header_value = match v.to_str() {
+                    Ok(header_value) => header_value,
+                    Err(_) => "",
+                };
+                let header_str =
+                    String::from(format!("{}:{}", k.as_str().to_string(), header_value));
+                let re = match regex::Regex::new(&job_header_regex) {
+                    Ok(re) => re,
+                    Err(_) => continue,
+                };
+                for m_str in re.captures_iter(&header_str) {
+                    if m_str.len() > 0 {
+                        let str_match = m_str[m_str.len() - 1].to_string();
+                        header_match.push_str(&str_match);
+                    }
+                }
+            }
+
             let body = match resp.text().await {
                 Ok(body) => body,
                 Err(_) => {
                     continue;
                 }
             };
+
             let mut title = String::from("");
-            let re = Regex::new("<title>(.*)</title>").unwrap();
-            for cap in re.captures_iter(&body) {
-                if cap.len() > 0 {
-                    title.push_str(&cap[1].to_string());
-                    break;
+            if job_title {
+                let re = match Regex::new("<title>(.*)</title>") {
+                    Ok(re) => re,
+                    Err(_) => continue,
+                };
+                for cap in re.captures_iter(&body) {
+                    if cap.len() > 0 {
+                        title.push_str(&cap[1].to_string());
+                        break;
+                    }
                 }
             }
 
-            let re = match regex::Regex::new(&job_regex) {
+            let re = match regex::Regex::new(&job_body_regex) {
                 Ok(re) => re,
                 Err(_) => continue,
             };
 
+            let url = match reqwest::Url::parse(&domain_result) {
+                Ok(url) => url,
+                Err(_) => continue,
+            };
+
+            let mut tech_str = String::from("");
+            if job_tech {
+                let port = match port_selector::random_free_tcp_port() {
+                    Some(port) => port,
+                    None => continue,
+                };
+
+                if port_selector::is_free(port) {
+                    let tech_analysis = wappalyzer::scan(url, port).await;
+                    let tech_result = match tech_analysis.result {
+                        Ok(tech_result) => tech_result,
+                        Err(_) => continue,
+                    };
+
+                    for tech in tech_result.iter() {
+                        tech_str.push_str(&tech.name);
+                        tech_str.push_str(",");
+                    }
+                }
+            }
+            let tech = match tech_str.strip_suffix(",") {
+                Some(tech) => tech.to_string(),
+                None => "".to_string(),
+            };
+
+            let mut body_match = String::from("");
             for m_str in re.captures_iter(&body) {
                 if m_str.len() > 0 {
                     let str_match = m_str[m_str.len() - 1].to_string();
-                    println!("{} [{}] [{}]", domain_result, title, str_match);
-                    break;
-                } else {
-                    println!("{} [{}]", domain_result, title);
+                    body_match.push_str(&str_match);
                     break;
                 }
             }
+            println!(
+                "{} [{}] [{}] [{}] [{}]",
+                domain_result.white().bold(),
+                title.white().bold(),
+                body_match.white().bold(),
+                header_match.white().bold(),
+                tech.white().bold()
+            );
         }
     }
 }
 
+/**
+ * Resolve the subdomains and return the host
+ */
 async fn http_resolver(host: String, schema: String, port: String) -> String {
     let mut host_str = String::from(schema);
     let domain = String::from(format!("{}:{}", host, port));
@@ -270,8 +459,8 @@ async fn http_resolver(host: String, schema: String, port: String) -> String {
         Ok(lookup) => lookup,
         Err(_) => return "".to_string(),
     };
-    // Perform DNS resolution to get IP addresses for the hostname
 
+    // Perform DNS resolution to get IP addresses for the hostname
     for addr in lookup {
         if addr.is_ipv4() {
             host_str.push_str(&host);
