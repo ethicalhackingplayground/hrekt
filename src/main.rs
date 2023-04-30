@@ -33,7 +33,7 @@ fn print_banner() {
   \ \_\ \_\  \ \_\ \_\  \ \_____\  \ \_\ \_\    \ \_\ 
    \/_/\/_/   \/_/ /_/   \/_____/   \/_/\/_/     \/_/ 
                                                                                                                      
-                    v0.1.1                     
+                    v0.1.2                     
     "#;
     eprintln!("{}", BANNER.bold().cyan());
     eprintln!(
@@ -72,7 +72,7 @@ fn print_banner() {
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // parse the cli arguments
     let matches = App::new("hrekt")
-        .version("0.1.1")
+        .version("0.1.2")
         .author("Blake Jacobs <krypt0mux@gmail.com>")
         .about("really fast http prober")
         .arg(
