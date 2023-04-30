@@ -28,10 +28,23 @@
 ---
 
 ## Installation
+
+#### Fresh Installs
 ```bash
-cargo build -r
+$ cargo build -r
+$ mv target/release/hrekt /bin/hrekt
 ```
+
+#### Already been installed
+```bash
+$ cargo build -r
+$ mv target/release/hrekt /<user>/.cargo/bin/
+```
+
+Make sure to replace `<user>` with your username.
+
 Can only be compiled locally right now.
+
 
 ## Usage
 
