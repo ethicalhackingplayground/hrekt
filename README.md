@@ -28,9 +28,10 @@
 ---
 
 ## Installation
-```rust
-cargo install hrekt
+```bash
+cargo build -r
 ```
+Can only be compiled locally right now.
 
 ## Usage
 
