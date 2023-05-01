@@ -81,7 +81,7 @@ OPTIONS:
             display the technology used
 
     -q, --silent
-            display the technology used
+            suppress output
 
     -l, --follow-redirects
             follow http redirects

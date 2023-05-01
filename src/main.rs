@@ -124,7 +124,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 .long("silent")
                 .takes_value(false)
                 .display_order(10)
-                .help("display the technology used"),
+                .help("suppress output"),
         )
         .arg(
             Arg::with_name("follow-redirects")
