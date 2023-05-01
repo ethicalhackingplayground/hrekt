@@ -4,13 +4,13 @@ use clap::{App, Arg};
 use colored::Colorize;
 use futures::{stream::FuturesUnordered, StreamExt};
 use governor::{Quota, RateLimiter};
-use port_selector;
+use headless_chrome::Browser;
 use regex;
 use regex::Regex;
 use reqwest::redirect;
 use std::{error::Error, time::Duration};
 use tokio::{net, runtime::Builder, task};
-use wappalyzer;
+use wappalyzer::{self};
 
 #[derive(Clone, Debug)]
 pub struct Job {
@@ -33,7 +33,7 @@ fn print_banner() {
   \ \_\ \_\  \ \_\ \_\  \ \_____\  \ \_\ \_\    \ \_\ 
    \/_/\/_/   \/_/ /_/   \/_____/   \/_/\/_/     \/_/ 
                                                                                                                      
-                    v0.1.2                     
+                    v0.1.3                  
     "#;
     eprintln!("{}", BANNER.bold().cyan());
     eprintln!(
@@ -72,7 +72,7 @@ fn print_banner() {
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // parse the cli arguments
     let matches = App::new("hrekt")
-        .version("0.1.2")
+        .version("0.1.3")
         .author("Blake Jacobs <krypt0mux@gmail.com>")
         .about("really fast http prober")
         .arg(
@@ -125,6 +125,14 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 .takes_value(false)
                 .display_order(10)
                 .help("display the technology used"),
+        )
+        .arg(
+            Arg::with_name("follow-redirects")
+                .short('l')
+                .long("follow-redirects")
+                .takes_value(false)
+                .display_order(11)
+                .help("follow http redirects"),
         )
         .arg(
             Arg::with_name("body-regex")
@@ -194,6 +202,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     let display_title = matches.is_present("title");
     let display_tech = matches.is_present("tech-detect");
+    let follow_redirects = matches.is_present("follow-redirects");
 
     let concurrency = match matches.value_of("concurrency").unwrap().parse::<u32>() {
         Ok(n) => n,
@@ -238,15 +247,19 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         .await
     });
 
+    // initialize the new chromium browser instance
+    let browser = wappalyzer::new_browser();
+
     // process the jobs
     let workers = FuturesUnordered::new();
 
     // process the jobs for scanning.
     for _ in 0..concurrency {
         let jrx = job_rx.clone();
+        let browser_instance = browser.clone();
         workers.push(task::spawn(async move {
             //  run the detector
-            run_detector(jrx, timeout).await
+            run_detector(jrx, follow_redirects, browser_instance, timeout).await
         }));
     }
     let _: Vec<_> = workers.collect().await;
@@ -294,7 +307,12 @@ async fn send_url(
 /**
  * Perform the HTTP probing operation.
  */
-pub async fn run_detector(rx: spmc::Receiver<Job>, timeout: usize) {
+pub async fn run_detector(
+    rx: spmc::Receiver<Job>,
+    follow_redirects: bool,
+    browser: Browser,
+    timeout: usize,
+) {
     let mut headers = reqwest::header::HeaderMap::new();
     headers.insert(
         reqwest::header::USER_AGENT,
@@ -303,15 +321,28 @@ pub async fn run_detector(rx: spmc::Receiver<Job>, timeout: usize) {
         ),
     );
 
-    //no certs
-    let client = reqwest::Client::builder()
-        .default_headers(headers)
-        .redirect(redirect::Policy::limited(10))
-        .timeout(Duration::from_secs(timeout.try_into().unwrap()))
-        .danger_accept_invalid_hostnames(true)
-        .danger_accept_invalid_certs(true)
-        .build()
-        .unwrap();
+    let client;
+    if follow_redirects {
+        //no certs
+        client = reqwest::Client::builder()
+            .default_headers(headers)
+            .redirect(redirect::Policy::limited(10))
+            .timeout(Duration::from_secs(timeout.try_into().unwrap()))
+            .danger_accept_invalid_hostnames(true)
+            .danger_accept_invalid_certs(true)
+            .build()
+            .unwrap();
+    } else {
+        //no certs
+        client = reqwest::Client::builder()
+            .default_headers(headers)
+            .redirect(redirect::Policy::none())
+            .timeout(Duration::from_secs(timeout.try_into().unwrap()))
+            .danger_accept_invalid_hostnames(true)
+            .danger_accept_invalid_certs(true)
+            .build()
+            .unwrap();
+    }
 
     while let Ok(job) = rx.recv() {
         let job_host: String = job.host.unwrap();
@@ -328,15 +359,25 @@ pub async fn run_detector(rx: spmc::Receiver<Job>, timeout: usize) {
             let job_host_https = job_host_http.clone();
             let http_port = port.to_string();
             let https_port = http_port.to_string();
-            let http = http_resolver(job_host_http, "http://".to_owned(), http_port).await;
-            resolved_domains.push(http);
+            if port == "80" {
+                let http = http_resolver(job_host_http, "http://".to_owned(), http_port).await;
+                resolved_domains.push(http);
+            } else if port == "443" {
+                let https = http_resolver(job_host_https, "https://".to_owned(), https_port).await;
+                resolved_domains.push(https);
+            } else {
+                let https =
+                    http_resolver(job_host_https, "https://".to_owned(), https_port.to_owned())
+                        .await;
+                resolved_domains.push(https);
 
-            let https = http_resolver(job_host_https, "https://".to_owned(), https_port).await;
-            resolved_domains.push(https);
+                let http = http_resolver(job_host_http, "http://".to_owned(), http_port).await;
+                resolved_domains.push(http);
+            }
         }
         for domain in &resolved_domains {
             let domain_result = domain.clone();
-
+            let browser_instance = browser.clone();
             // Iterate over the resolved IP addresses and send HTTP requests
             let get = client.get(domain);
             let req = match get.build() {
@@ -406,22 +447,14 @@ pub async fn run_detector(rx: spmc::Receiver<Job>, timeout: usize) {
 
             let mut tech_str = String::from("");
             if job_tech {
-                let port = match port_selector::random_free_tcp_port() {
-                    Some(port) => port,
-                    None => continue,
+                let tech_analysis = wappalyzer::scan(url, &browser_instance).await;
+                let tech_result = match tech_analysis.result {
+                    Ok(tech_result) => tech_result,
+                    Err(_) => continue,
                 };
-
-                if port_selector::is_free(port) {
-                    let tech_analysis = wappalyzer::scan(url, port).await;
-                    let tech_result = match tech_analysis.result {
-                        Ok(tech_result) => tech_result,
-                        Err(_) => continue,
-                    };
-
-                    for tech in tech_result.iter() {
-                        tech_str.push_str(&tech.name);
-                        tech_str.push_str(",");
-                    }
+                for tech in tech_result.iter() {
+                    tech_str.push_str(&tech.name);
+                    tech_str.push_str(",");
                 }
             }
             let tech = match tech_str.strip_suffix(",") {

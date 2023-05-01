@@ -1,6 +1,6 @@
 [package]
 name = "hrekt"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 authors = ["zoid", "<krypt0mux@gmail.com>"]
 description = "A really fast http prober."
@@ -22,4 +22,5 @@ tokio-dns-unofficial = "0.4.0"
 async-std = "1.12.0"
 port-selector = "0.1.6"
 reqwest = { version = "0.11.14", features = ["native-tls", "blocking"] }
-wappalyzer = { git = "https://github.com/cyberlixio/wappalyzer" }
+wappalyzer = { git = "https://github.com/ethicalhackingplayground/wappalyzer", rev = "034a049e" }
+headless_chrome = {git = "https://github.com/ethicalhackingplayground/rust-headless-chrome", rev = "3c7488b5", features = ["fetch"]}
