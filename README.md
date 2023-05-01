@@ -83,6 +83,9 @@ OPTIONS:
     -q, --silent
             display the technology used
 
+    -l, --follow-redirects
+            follow http redirects
+
         --help
             Print help information
 
