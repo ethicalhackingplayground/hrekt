@@ -150,7 +150,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 .default_value("")
                 .takes_value(true)
                 .display_order(8)
-                .help("regex to be used to match a specific pattern in the response"),
+                .help("regex to be used to match a specific pattern in the header"),
         )
         .arg(
             Arg::with_name("timeout")

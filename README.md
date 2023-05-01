@@ -72,7 +72,7 @@ OPTIONS:
             regex to be used to match a specific pattern in the response [default: ]
 
     -h, --header-regex <header-regex>
-            regex to be used to match a specific pattern in the response [default: ]
+            regex to be used to match a specific pattern in the header [default: ]
 
     -i, --title
             display the page titles
