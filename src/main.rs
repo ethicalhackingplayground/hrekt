@@ -8,7 +8,7 @@ use headless_chrome::Browser;
 use regex;
 use regex::Regex;
 use reqwest::redirect;
-use std::{error::Error, time::Duration};
+use std::{error::Error, process::exit, time::Duration};
 use tokio::{net, runtime::Builder, task};
 use wappalyzer::{self};
 
@@ -20,6 +20,7 @@ pub struct Job {
     ports: Option<String>,
     display_title: Option<bool>,
     display_tech: Option<bool>,
+    path: Option<String>,
 }
 
 /**
@@ -33,7 +34,7 @@ fn print_banner() {
   \ \_\ \_\  \ \_\ \_\  \ \_____\  \ \_\ \_\    \ \_\ 
    \/_/\/_/   \/_/ /_/   \/_____/   \/_/\/_/     \/_/ 
                                                                                                                      
-                    v0.1.3                  
+                    v0.1.4                  
     "#;
     eprintln!("{}", BANNER.bold().cyan());
     eprintln!(
@@ -72,7 +73,7 @@ fn print_banner() {
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // parse the cli arguments
     let matches = App::new("hrekt")
-        .version("0.1.3")
+        .version("0.1.4")
         .author("Blake Jacobs <krypt0mux@gmail.com>")
         .about("really fast http prober")
         .arg(
@@ -81,7 +82,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 .long("rate")
                 .takes_value(true)
                 .default_value("1000")
-                .display_order(2)
+                .display_order(1)
                 .help("Maximum in-flight requests per second"),
         )
         .arg(
@@ -90,8 +91,26 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 .long("concurrency")
                 .default_value("100")
                 .takes_value(true)
-                .display_order(3)
+                .display_order(2)
                 .help("The amount of concurrent requests"),
+        )
+        .arg(
+            Arg::with_name("timeout")
+                .short('t')
+                .long("timeout")
+                .default_value("3")
+                .takes_value(true)
+                .display_order(3)
+                .help("The delay between each request"),
+        )
+        .arg(
+            Arg::with_name("workers")
+                .short('w')
+                .long("workers")
+                .default_value("1")
+                .takes_value(true)
+                .display_order(4)
+                .help("The amount of workers"),
         )
         .arg(
             Arg::with_name("ports")
@@ -99,15 +118,15 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 .long("ports")
                 .default_value("80,443")
                 .takes_value(true)
-                .display_order(6)
-                .help("the ports to probe default is (80,443)"),
+                .display_order(5)
+                .help("the ports to probe default ports are (80,443)"),
         )
         .arg(
             Arg::with_name("title")
                 .long("title")
                 .short('i')
                 .takes_value(false)
-                .display_order(9)
+                .display_order(6)
                 .help("display the page titles"),
         )
         .arg(
@@ -115,16 +134,35 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 .long("tech-detect")
                 .short('d')
                 .takes_value(false)
-                .display_order(10)
+                .display_order(7)
                 .help("display the technology used"),
         )
         .arg(
-            Arg::with_name("silent")
-                .short('q')
-                .long("silent")
-                .takes_value(false)
+            Arg::with_name("path")
+                .long("path")
+                .short('x')
+                .default_value("")
+                .takes_value(true)
+                .display_order(8)
+                .help("probe the specified path"),
+        )
+        .arg(
+            Arg::with_name("body-regex")
+                .long("body-regex")
+                .short('b')
+                .default_value("")
+                .takes_value(true)
+                .display_order(9)
+                .help("regex to be used to match a specific pattern in the response"),
+        )
+        .arg(
+            Arg::with_name("header-regex")
+                .long("header-regex")
+                .short('h')
+                .default_value("")
+                .takes_value(true)
                 .display_order(10)
-                .help("suppress output"),
+                .help("regex to be used to match a specific pattern in the header"),
         )
         .arg(
             Arg::with_name("follow-redirects")
@@ -135,40 +173,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 .help("follow http redirects"),
         )
         .arg(
-            Arg::with_name("body-regex")
-                .long("body-regex")
-                .short('b')
-                .default_value("")
-                .takes_value(true)
-                .display_order(7)
-                .help("regex to be used to match a specific pattern in the response"),
-        )
-        .arg(
-            Arg::with_name("header-regex")
-                .long("header-regex")
-                .short('h')
-                .default_value("")
-                .takes_value(true)
-                .display_order(8)
-                .help("regex to be used to match a specific pattern in the header"),
-        )
-        .arg(
-            Arg::with_name("timeout")
-                .short('t')
-                .long("timeout")
-                .default_value("3")
-                .takes_value(true)
-                .display_order(4)
-                .help("The delay between each request"),
-        )
-        .arg(
-            Arg::with_name("workers")
-                .short('w')
-                .long("workers")
-                .default_value("1")
-                .takes_value(true)
-                .display_order(5)
-                .help("The amount of workers"),
+            Arg::with_name("silent")
+                .short('q')
+                .long("silent")
+                .takes_value(false)
+                .display_order(12)
+                .help("suppress output"),
         )
         .get_matches();
 
@@ -197,6 +207,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     let ports = match matches.value_of("ports").unwrap().parse::<String>() {
         Ok(ports) => ports,
+        Err(_) => "".to_string(),
+    };
+
+    let path = match matches.value_of("path").unwrap().parse::<String>() {
+        Ok(path) => path,
         Err(_) => "".to_string(),
     };
 
@@ -242,13 +257,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             ports,
             display_title,
             display_tech,
+            path,
             rate,
         )
         .await
     });
-
-    // initialize the new chromium browser instance
-    let browser = wappalyzer::new_browser();
 
     // process the jobs
     let workers = FuturesUnordered::new();
@@ -256,6 +269,15 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // process the jobs for scanning.
     for _ in 0..concurrency {
         let jrx = job_rx.clone();
+        // initialize the new chromium browser instance
+        let port = match port_selector::random_free_tcp_port() {
+            Some(port) => port,
+            None => {
+                println!("Something bad happened :(");
+                exit(1);
+            }
+        };
+        let browser = wappalyzer::new_browser(port);
         let browser_instance = browser.clone();
         workers.push(task::spawn(async move {
             //  run the detector
@@ -278,6 +300,7 @@ async fn send_url(
     ports: String,
     display_title: bool,
     display_tech: bool,
+    path: String,
     rate: u32,
 ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     //set rate limit
@@ -294,6 +317,7 @@ async fn send_url(
             ports: Some(ports.to_string()),
             display_title: Some(display_title.clone()),
             display_tech: Some(display_tech.clone()),
+            path: Some(path.clone()),
         };
         if let Err(err) = tx.send(msg) {
             eprintln!("{}", err.to_string());
@@ -348,11 +372,13 @@ pub async fn run_detector(
         let job_host: String = job.host.unwrap();
         let job_body_regex = job.body_regex.unwrap();
         let job_header_regex = job.header_regex.unwrap();
+        let job_path = job.path.unwrap();
         let job_ports = job.ports.unwrap();
         let job_title = job.display_title.unwrap();
         let job_tech = job.display_tech.unwrap();
         let mut resolved_domains: Vec<String> = vec![String::from("")];
 
+        // probe for open ports and perform dns resolution
         let ports_array = job_ports.split(",");
         for (_, port) in ports_array.enumerate() {
             let job_host_http = job_host.clone();
@@ -375,109 +401,258 @@ pub async fn run_detector(
                 resolved_domains.push(http);
             }
         }
-        for domain in &resolved_domains {
-            let domain_result = domain.clone();
-            let browser_instance = browser.clone();
-            // Iterate over the resolved IP addresses and send HTTP requests
-            let get = client.get(domain);
-            let req = match get.build() {
-                Ok(req) => req,
-                Err(_) => {
-                    continue;
-                }
-            };
-            let resp = match client.execute(req).await {
-                Ok(resp) => resp,
-                Err(_) => {
-                    continue;
-                }
-            };
 
-            let mut header_match = String::from("");
-            let headers = resp.headers();
-            for (k, v) in headers.iter() {
-                let header_value = match v.to_str() {
-                    Ok(header_value) => header_value,
-                    Err(_) => "",
+        // Iterate over the resolved IP addresses and send HTTP requests
+        for domain in &resolved_domains {
+            let domain_cp = domain.clone();
+            if job_path != "" {
+                let path_url = String::from(format!("{}{}", domain, job_path));
+                let url = path_url.clone();
+                let mut domain_result_url = String::from("");
+
+                let path_resp_get = client.get(path_url);
+                let path_resp_req = match path_resp_get.build() {
+                    Ok(path_resp_req) => path_resp_req,
+                    Err(_) => {
+                        continue;
+                    }
                 };
-                let header_str =
-                    String::from(format!("{}:{}", k.as_str().to_string(), header_value));
-                let re = match regex::Regex::new(&job_header_regex) {
-                    Ok(re) => re,
-                    Err(_) => continue,
+                let path_resp = match client.execute(path_resp_req).await {
+                    Ok(path_resp) => path_resp,
+                    Err(_) => {
+                        continue;
+                    }
                 };
-                for m_str in re.captures_iter(&header_str) {
-                    if m_str.len() > 0 {
-                        let str_match = m_str[m_str.len() - 1].to_string();
-                        header_match.push_str(&str_match);
+
+                // check if a valid path has been found
+                if path_resp.status().as_u16() != 404 && path_resp.status().as_u16() != 400 {
+                    let browser_instance = browser.clone();
+                    domain_result_url.push_str(&url);
+                    let domain_result = domain_result_url.clone();
+                    let get = client.get(domain_result_url);
+                    let req = match get.build() {
+                        Ok(req) => req,
+                        Err(_) => {
+                            continue;
+                        }
+                    };
+                    let resp = match client.execute(req).await {
+                        Ok(resp) => resp,
+                        Err(_) => {
+                            continue;
+                        }
+                    };
+
+                    // perform the regex on the headers
+                    let mut header_match = String::from("");
+                    let headers = resp.headers();
+                    for (k, v) in headers.iter() {
+                        let header_value = match v.to_str() {
+                            Ok(header_value) => header_value,
+                            Err(_) => "",
+                        };
+                        let header_str =
+                            String::from(format!("{}:{}", k.as_str().to_string(), header_value));
+                        let re = match regex::Regex::new(&job_header_regex) {
+                            Ok(re) => re,
+                            Err(_) => continue,
+                        };
+                        for m_str in re.captures_iter(&header_str) {
+                            if m_str.len() > 0 {
+                                let str_match = m_str[m_str.len() - 1].to_string();
+                                header_match.push_str(&str_match);
+                            }
+                        }
+                    }
+
+                    let body = match resp.text().await {
+                        Ok(body) => body,
+                        Err(_) => {
+                            continue;
+                        }
+                    };
+
+                    // extract the page title
+                    let mut title = String::from("");
+                    if job_title {
+                        let re = match Regex::new("<title>(.*)</title>") {
+                            Ok(re) => re,
+                            Err(_) => continue,
+                        };
+                        for cap in re.captures_iter(&body) {
+                            if cap.len() > 0 {
+                                title.push_str(&cap[1].to_string());
+                                break;
+                            }
+                        }
+                    }
+
+                    // perform the regex on the response body
+                    let re = match regex::Regex::new(&job_body_regex) {
+                        Ok(re) => re,
+                        Err(_) => continue,
+                    };
+
+                    let url = match reqwest::Url::parse(&domain_result) {
+                        Ok(url) => url,
+                        Err(_) => continue,
+                    };
+
+                    // extract the technologies
+                    let mut tech_str = String::from("");
+                    if job_tech {
+                        let tech_analysis = wappalyzer::scan(url, &browser_instance).await;
+                        let tech_result = match tech_analysis.result {
+                            Ok(tech_result) => tech_result,
+                            Err(_) => continue,
+                        };
+                        for tech in tech_result.iter() {
+                            tech_str.push_str(&tech.name);
+                            tech_str.push_str(",");
+                        }
+                    }
+                    let tech = match tech_str.strip_suffix(",") {
+                        Some(tech) => tech.to_string(),
+                        None => "".to_string(),
+                    };
+
+                    let mut body_match = String::from("");
+                    for m_str in re.captures_iter(&body) {
+                        if m_str.len() > 0 {
+                            let str_match = m_str[m_str.len() - 1].to_string();
+                            body_match.push_str(&str_match);
+                            break;
+                        }
+                    }
+                    // print the final results
+                    println!(
+                        "{} {} [{}] {} {} [{}] {} {} [{}] {} {} [{}]",
+                        domain_result.white().bold(),
+                        "Title:".bold().white(),
+                        title.white().bold(),
+                        "::".bold().white(),
+                        "Resp:".bold().white(),
+                        body_match.white().bold(),
+                        "::".bold().white(),
+                        "Header:".bold().white(),
+                        header_match.white().bold(),
+                        "::".bold().white(),
+                        "Tech:".bold().white(),
+                        tech.white().bold()
+                    );
+                }
+            } else {
+                let browser_instance = browser.clone();
+                let url = String::from(domain_cp);
+                let domain_result = url.clone();
+                let get = client.get(url);
+                let req = match get.build() {
+                    Ok(req) => req,
+                    Err(_) => {
+                        continue;
+                    }
+                };
+                let resp = match client.execute(req).await {
+                    Ok(resp) => resp,
+                    Err(_) => {
+                        continue;
+                    }
+                };
+
+                let mut header_match = String::from("");
+                let headers = resp.headers();
+                for (k, v) in headers.iter() {
+                    let header_value = match v.to_str() {
+                        Ok(header_value) => header_value,
+                        Err(_) => "",
+                    };
+                    let header_str =
+                        String::from(format!("{}:{}", k.as_str().to_string(), header_value));
+                    let re = match regex::Regex::new(&job_header_regex) {
+                        Ok(re) => re,
+                        Err(_) => continue,
+                    };
+                    for m_str in re.captures_iter(&header_str) {
+                        if m_str.len() > 0 {
+                            let str_match = m_str[m_str.len() - 1].to_string();
+                            header_match.push_str(&str_match);
+                        }
                     }
                 }
-            }
 
-            let body = match resp.text().await {
-                Ok(body) => body,
-                Err(_) => {
-                    continue;
+                let body = match resp.text().await {
+                    Ok(body) => body,
+                    Err(_) => {
+                        continue;
+                    }
+                };
+
+                let mut title = String::from("");
+                if job_title {
+                    let re = match Regex::new("<title>(.*)</title>") {
+                        Ok(re) => re,
+                        Err(_) => continue,
+                    };
+                    for cap in re.captures_iter(&body) {
+                        if cap.len() > 0 {
+                            title.push_str(&cap[1].to_string());
+                            break;
+                        }
+                    }
                 }
-            };
 
-            let mut title = String::from("");
-            if job_title {
-                let re = match Regex::new("<title>(.*)</title>") {
+                let re = match regex::Regex::new(&job_body_regex) {
                     Ok(re) => re,
                     Err(_) => continue,
                 };
-                for cap in re.captures_iter(&body) {
-                    if cap.len() > 0 {
-                        title.push_str(&cap[1].to_string());
+
+                let url = match reqwest::Url::parse(&domain_result) {
+                    Ok(url) => url,
+                    Err(_) => continue,
+                };
+
+                let mut tech_str = String::from("");
+                if job_tech {
+                    let tech_analysis = wappalyzer::scan(url, &browser_instance).await;
+                    let tech_result = match tech_analysis.result {
+                        Ok(tech_result) => tech_result,
+                        Err(_) => continue,
+                    };
+                    for tech in tech_result.iter() {
+                        tech_str.push_str(&tech.name);
+                        tech_str.push_str(",");
+                    }
+                }
+                let tech = match tech_str.strip_suffix(",") {
+                    Some(tech) => tech.to_string(),
+                    None => "".to_string(),
+                };
+
+                let mut body_match = String::from("");
+                for m_str in re.captures_iter(&body) {
+                    if m_str.len() > 0 {
+                        let str_match = m_str[m_str.len() - 1].to_string();
+                        body_match.push_str(&str_match);
                         break;
                     }
                 }
+                // print the final results
+                println!(
+                    "{} {} [{}] {} {} [{}] {} {} [{}] {} {} [{}]",
+                    domain_result.white().bold(),
+                    "Title:".bold().white(),
+                    title.white().bold(),
+                    "::".bold().white(),
+                    "Resp:".bold().white(),
+                    body_match.white().bold(),
+                    "::".bold().white(),
+                    "Header:".bold().white(),
+                    header_match.white().bold(),
+                    "::".bold().white(),
+                    "Tech:".bold().white(),
+                    tech.white().bold()
+                );
             }
-
-            let re = match regex::Regex::new(&job_body_regex) {
-                Ok(re) => re,
-                Err(_) => continue,
-            };
-
-            let url = match reqwest::Url::parse(&domain_result) {
-                Ok(url) => url,
-                Err(_) => continue,
-            };
-
-            let mut tech_str = String::from("");
-            if job_tech {
-                let tech_analysis = wappalyzer::scan(url, &browser_instance).await;
-                let tech_result = match tech_analysis.result {
-                    Ok(tech_result) => tech_result,
-                    Err(_) => continue,
-                };
-                for tech in tech_result.iter() {
-                    tech_str.push_str(&tech.name);
-                    tech_str.push_str(",");
-                }
-            }
-            let tech = match tech_str.strip_suffix(",") {
-                Some(tech) => tech.to_string(),
-                None => "".to_string(),
-            };
-
-            let mut body_match = String::from("");
-            for m_str in re.captures_iter(&body) {
-                if m_str.len() > 0 {
-                    let str_match = m_str[m_str.len() - 1].to_string();
-                    body_match.push_str(&str_match);
-                    break;
-                }
-            }
-            println!(
-                "{} [{}] [{}] [{}] [{}]",
-                domain_result.white().bold(),
-                title.white().bold(),
-                body_match.white().bold(),
-                header_match.white().bold(),
-                tech.white().bold()
-            );
         }
     }
 }

@@ -66,13 +66,7 @@ OPTIONS:
             The amount of workers [default: 1]
 
     -p, --ports <ports>
-            the ports to probe default is (80,443) [default: 80,443]
-
-    -b, --body-regex <body-regex>
-            regex to be used to match a specific pattern in the response [default: ]
-
-    -h, --header-regex <header-regex>
-            regex to be used to match a specific pattern in the header [default: ]
+            the ports to probe default ports are (80,443) [default: 80,443]
 
     -i, --title
             display the page titles
@@ -80,11 +74,20 @@ OPTIONS:
     -d, --tech-detect
             display the technology used
 
-    -q, --silent
-            suppress output
+    -x, --path <path>
+            probe the specified path [default: ]
+
+    -b, --body-regex <body-regex>
+            regex to be used to match a specific pattern in the response [default: ]
+
+    -h, --header-regex <header-regex>
+            regex to be used to match a specific pattern in the header [default: ]
 
     -l, --follow-redirects
             follow http redirects
+
+    -q, --silent
+            suppress output
 
         --help
             Print help information
@@ -125,6 +128,18 @@ cat subs.txt | hrekt --body-regex 'href="\/content\/dam.*'
 
 ```bash
 cat subs.txt | hrekt --header-regex 'Server:.*'
+```
+
+#### Probe the path
+
+```bash
+cat subs.txt | hrekt --path /v1/api
+```
+
+#### Multiple Flags
+
+```bash
+cat subs.txt | hrekt --path /etc.clientlibs --tech-detect --title --body-regex 'href="\/content\/dam.*'
 ```
 
 ## FYI
