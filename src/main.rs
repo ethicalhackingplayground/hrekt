@@ -33,37 +33,10 @@ fn print_banner() {
  \ \  __ \  \ \  __<   \ \  __\   \ \  _"-.  \/_/\ \/ 
   \ \_\ \_\  \ \_\ \_\  \ \_____\  \ \_\ \_\    \ \_\ 
    \/_/\/_/   \/_/ /_/   \/_____/   \/_/\/_/     \/_/ 
-                                                                                                                     
-                    v0.1.4                  
+
+                    v0.1.5
     "#;
-    eprintln!("{}", BANNER.bold().cyan());
-    eprintln!(
-        "{}{}{} {}",
-        "[".bold().white(),
-        "WRN".bold().yellow(),
-        "]".bold().white(),
-        "Use with caution. You are responsible for your actions"
-            .bold()
-            .white()
-    );
-    eprintln!(
-        "{}{}{} {}",
-        "[".bold().white(),
-        "WRN".bold().yellow(),
-        "]".bold().white(),
-        "Developers assume no liability and are not responsible for any misuse or damage."
-            .bold()
-            .white()
-    );
-    eprintln!(
-        "{}{}{} {}\n",
-        "[".bold().white(),
-        "WRN".bold().yellow(),
-        "]".bold().white(),
-        "By using hrekt, you also agree to the terms of the APIs used."
-            .bold()
-            .white()
-    );
+    eprintln!("{}", BANNER.white());
 }
 
 /**
@@ -73,7 +46,7 @@ fn print_banner() {
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // parse the cli arguments
     let matches = App::new("hrekt")
-        .version("0.1.4")
+        .version("0.1.5")
         .author("Blake Jacobs <krypt0mux@gmail.com>")
         .about("really fast http prober")
         .arg(
@@ -526,19 +499,12 @@ pub async fn run_detector(
                     }
                     // print the final results
                     println!(
-                        "{} {} [{}] {} {} [{}] {} {} [{}] {} {} [{}]",
-                        domain_result.white().bold(),
-                        "Title:".bold().white(),
-                        title.white().bold(),
-                        "::".bold().white(),
-                        "Resp:".bold().white(),
-                        body_match.white().bold(),
-                        "::".bold().white(),
-                        "Header:".bold().white(),
-                        header_match.white().bold(),
-                        "::".bold().white(),
-                        "Tech:".bold().white(),
-                        tech.white().bold()
+                        "{} [{}] [{}] [{}] [{}]",
+                        domain_result,
+                        title.cyan(),
+                        body_match.red(),
+                        header_match.red(),
+                        tech.purple(),
                     );
                 }
             } else {
@@ -637,20 +603,14 @@ pub async fn run_detector(
                     }
                 }
                 // print the final results
+                // print the final results
                 println!(
-                    "{} {} [{}] {} {} [{}] {} {} [{}] {} {} [{}]",
-                    domain_result.white().bold(),
-                    "Title:".bold().white(),
-                    title.white().bold(),
-                    "::".bold().white(),
-                    "Resp:".bold().white(),
-                    body_match.white().bold(),
-                    "::".bold().white(),
-                    "Header:".bold().white(),
-                    header_match.white().bold(),
-                    "::".bold().white(),
-                    "Tech:".bold().white(),
-                    tech.white().bold()
+                    "{} [{}] [{}] [{}] [{}]",
+                    domain_result,
+                    title.cyan(),
+                    body_match.red(),
+                    header_match.red(),
+                    tech.purple(),
                 );
             }
         }
