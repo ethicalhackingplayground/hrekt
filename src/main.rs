@@ -417,6 +417,7 @@ pub async fn run_detector(
                     let browser_instance = browser.clone();
                     domain_result_url.push_str(&url);
                     let domain_result = domain_result_url.clone();
+                    let domain_result_cloned = domain_result.clone();
                     let get = client.get(domain_result_url);
                     let req = match get.build() {
                         Ok(req) => req,
@@ -425,6 +426,20 @@ pub async fn run_detector(
                         }
                     };
                     let resp = match client.execute(req).await {
+                        Ok(resp) => resp,
+                        Err(_) => {
+                            continue;
+                        }
+                    };
+
+                    let get_request = client.get(domain_result_cloned);
+                    let request = match get_request.build() {
+                        Ok(req) => req,
+                        Err(_) => {
+                            continue;
+                        }
+                    };
+                    let response = match client.execute(request).await {
                         Ok(resp) => resp,
                         Err(_) => {
                             continue;
@@ -513,7 +528,7 @@ pub async fn run_detector(
                         }
                     }
 
-                    let sc = resp.status().as_u16();
+                    let sc = response.status().as_u16();
 
                     if job_status_codes {
                         if sc >= 100 && sc < 200 {
@@ -591,6 +606,7 @@ pub async fn run_detector(
             } else {
                 let browser_instance = browser.clone();
                 let url = String::from(domain_cp);
+                let url_cloned = url.clone();
                 let domain_result = url.clone();
                 let get = client.get(url);
                 let req = match get.build() {
@@ -600,6 +616,20 @@ pub async fn run_detector(
                     }
                 };
                 let resp = match client.execute(req).await {
+                    Ok(resp) => resp,
+                    Err(_) => {
+                        continue;
+                    }
+                };
+
+                let get_request = client.get(url_cloned);
+                let request = match get_request.build() {
+                    Ok(req) => req,
+                    Err(_) => {
+                        continue;
+                    }
+                };
+                let response = match client.execute(request).await {
                     Ok(resp) => resp,
                     Err(_) => {
                         continue;
@@ -684,7 +714,7 @@ pub async fn run_detector(
                     }
                 }
 
-                let sc = resp.status().as_u16();
+                let sc = response.status().as_u16();
 
                 if job_status_codes {
                     if sc >= 100 && sc < 200 {
