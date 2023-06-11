@@ -224,6 +224,19 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         }
     };
 
+    
+    // collect hosts from stdin
+    let mut hosts = vec![];
+    let stdin = io::BufReader::new(io::stdin());
+    let mut lines = stdin.lines();
+    while let Some(line) = lines.next().await {
+        let host = match line {
+            Ok(host) => host,
+            Err(_) => "".to_string(),
+        };
+        hosts.push(host);
+    }
+
     // Set up a worker pool with the number of threads specified from the arguments
     let rt = Builder::new_multi_thread()
         .enable_all()
@@ -236,6 +249,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     rt.spawn(async move {
         send_url(
             job_tx,
+            hosts,
             body_regex,
             header_regex,
             ports,
@@ -280,6 +294,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
  */
 async fn send_url(
     mut tx: spmc::Sender<Job>,
+    hosts: Vec<String>,
     body_regex: String,
     header_regex: String,
     ports: String,
@@ -292,12 +307,11 @@ async fn send_url(
     //set rate limit
     let lim = RateLimiter::direct(Quota::per_second(std::num::NonZeroU32::new(rate).unwrap()));
 
-    let stdin = io::BufReader::new(io::stdin());
-    let mut lines = stdin.lines();
-    while let Some(line) = lines.next().await {
-        let last_input = line.unwrap();
+    for host in hosts.iter() {
+        // send the jobs
+        lim.until_ready().await;
         let msg = Job {
-            host: Some(last_input.to_string().clone()),
+            host: Some(host.to_string().clone()),
             body_regex: Some(body_regex.clone()),
             header_regex: Some(header_regex.clone()),
             ports: Some(ports.to_string()),
@@ -309,8 +323,6 @@ async fn send_url(
         if let Err(err) = tx.send(msg) {
             eprintln!("{}", err.to_string());
         }
-        // send the jobs
-        lim.until_ready().await;
     }
     Ok(())
 }
