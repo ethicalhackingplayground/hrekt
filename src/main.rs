@@ -8,7 +8,7 @@ use headless_chrome::Browser;
 use regex;
 use regex::Regex;
 use reqwest::redirect;
-use std::{error::Error, process::exit, time::Duration};
+use std::{error::Error, time::Duration};
 use tokio::{net, runtime::Builder, task};
 use wappalyzer::{self};
 
@@ -310,8 +310,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         let port = match port_selector::random_free_tcp_port() {
             Some(port) => port,
             None => {
-                println!("Something bad happened :(");
-                exit(1);
+                continue;
             }
         };
         let browser = wappalyzer::new_browser(port);

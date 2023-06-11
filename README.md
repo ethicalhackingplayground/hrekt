@@ -136,7 +136,7 @@ Options:
 
 ## Demonstration
 
-[![asciicast](https://asciinema.org/a/0NKeG6vcZvAoe9FSyBOR8IsMd.svg)](https://asciinema.org/a/0NKeG6vcZvAoe9FSyBOR8IsMd)
+[![asciicast](https://asciinema.org/a/XekxthZdgxO5luq7wTDvOxamq.svg)](https://asciinema.org/a/XekxthZdgxO5luq7wTDvOxamq)
 
 ---
 
