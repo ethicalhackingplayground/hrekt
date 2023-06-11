@@ -29,13 +29,13 @@ pub struct Job {
  */
 fn print_banner() {
     const BANNER: &str = r#"   
-  __  __     ______     ______     __  __     ______  
- /\ \_\ \   /\  == \   /\  ___\   /\ \/ /    /\__  _\ 
- \ \  __ \  \ \  __<   \ \  __\   \ \  _"-.  \/_/\ \/ 
-  \ \_\ \_\  \ \_\ \_\  \ \_____\  \ \_\ \_\    \ \_\ 
-   \/_/\/_/   \/_/ /_/   \/_____/   \/_/\/_/     \/_/ 
-
-                    v0.1.6
+    __              __   __ 
+   / /_  ________  / /__/ /_
+  / __ \/ ___/ _ \/ //_/ __/
+ / / / / /  /  __/ ,< / /_  
+/_/ /_/_/   \___/_/|_|\__/  
+                            
+                v0.1.6
     "#;
     eprintln!("{}", BANNER.white());
 }
@@ -448,22 +448,32 @@ pub async fn run_detector(
 
                     // perform the regex on the headers
                     let mut header_match = String::from("");
-                    let headers = resp.headers();
-                    for (k, v) in headers.iter() {
-                        let header_value = match v.to_str() {
-                            Ok(header_value) => header_value,
-                            Err(_) => "",
-                        };
-                        let header_str =
-                            String::from(format!("{}:{}", k.as_str().to_string(), header_value));
-                        let re = match regex::Regex::new(&job_header_regex) {
-                            Ok(re) => re,
-                            Err(_) => continue,
-                        };
-                        for m_str in re.captures_iter(&header_str) {
-                            if m_str.len() > 0 {
-                                let str_match = m_str[m_str.len() - 1].to_string();
-                                header_match.push_str(&str_match);
+                    if !job_header_regex.is_empty() {
+                        let headers = resp.headers();
+                        for (k, v) in headers.iter() {
+                            let header_value = match v.to_str() {
+                                Ok(header_value) => header_value,
+                                Err(_) => "",
+                            };
+                            let header_str = String::from(format!(
+                                "{}:{}",
+                                k.as_str().to_string(),
+                                header_value
+                            ));
+                            let re = match regex::Regex::new(&job_header_regex) {
+                                Ok(re) => re,
+                                Err(_) => continue,
+                            };
+                            for m_str in re.captures_iter(&header_str) {
+                                if m_str.len() > 0 {
+                                    let str_match = m_str[m_str.len() - 1].to_string();
+                                    if !str_match.is_empty() {
+                                        header_match.push_str("[");
+                                        header_match.push_str(&str_match);
+                                        header_match.push_str("]");
+                                        break;
+                                    }
+                                }
                             }
                         }
                     }
@@ -484,8 +494,12 @@ pub async fn run_detector(
                         };
                         for cap in re.captures_iter(&body) {
                             if cap.len() > 0 {
-                                title.push_str(&cap[1].to_string());
-                                break;
+                                if !cap[1].to_string().is_empty() {
+                                    title.push_str("[");
+                                    title.push_str(&cap[1].to_string());
+                                    title.push_str("]");
+                                    break;
+                                }
                             }
                         }
                     }
@@ -509,97 +523,113 @@ pub async fn run_detector(
                             Ok(tech_result) => tech_result,
                             Err(_) => continue,
                         };
+                        let mut tech_name = String::from("");
                         for tech in tech_result.iter() {
-                            tech_str.push_str(&tech.name);
-                            tech_str.push_str(",");
+                            tech_name.push_str(&tech.name);
+                            tech_name.push_str(",");
+                        }
+                        if !tech_name.is_empty() {
+                            tech_str.push_str("[");
+                            let tech = match tech_name.strip_suffix(",") {
+                                Some(tech) => tech.to_string(),
+                                None => "".to_string(),
+                            };
+                            tech_str.push_str(&tech.to_string());
+                            tech_str.push_str("]");
                         }
                     }
-                    let tech = match tech_str.strip_suffix(",") {
-                        Some(tech) => tech.to_string(),
-                        None => "".to_string(),
-                    };
 
                     let mut body_match = String::from("");
-                    for m_str in re.captures_iter(&body) {
-                        if m_str.len() > 0 {
-                            let str_match = m_str[m_str.len() - 1].to_string();
-                            body_match.push_str(&str_match);
-                            break;
+                    if !job_body_regex.is_empty() {
+                        for m_str in re.captures_iter(&body) {
+                            if m_str.len() > 0 {
+                                let str_match = m_str[m_str.len() - 1].to_string();
+                                if !str_match.is_empty() {
+                                    body_match.push_str("[");
+                                    body_match.push_str(&str_match);
+                                    body_match.push_str("]");
+                                    break;
+                                }
+                            }
                         }
                     }
 
-                    let sc = response.status().as_u16();
-
+                    let mut status_code = String::from("");
                     if job_status_codes {
+                        let sc = response.status().as_u16();
+                        status_code.push_str("[");
+                        status_code.push_str(&sc.to_string());
+                        status_code.push_str("]");
                         if sc >= 100 && sc < 200 {
                             // print the final results
                             println!(
-                                "{} [{}] [{}] [{}] [{}] [{}]",
+                                "{} {} {} {} {} {}",
                                 domain_result,
                                 title.cyan(),
                                 body_match.red(),
-                                sc.to_string().bold().white(),
+                                status_code.white(),
                                 header_match.red(),
-                                tech.purple(),
+                                tech_str.purple(),
                             );
                         }
                         if sc >= 200 && sc < 300 {
                             // print the final results
                             println!(
-                                "{} [{}] [{}] [{}] [{}] [{}]",
+                                "{} {} {} {} {} {}",
                                 domain_result,
                                 title.cyan(),
                                 body_match.red(),
-                                sc.to_string().bold().green(),
+                                status_code.green(),
                                 header_match.red(),
-                                tech.purple(),
+                                tech_str.purple(),
                             );
                         }
                         if sc >= 300 && sc < 400 {
                             // print the final results
                             println!(
-                                "{} [{}] [{}] [{}] [{}] [{}]",
+                                "{} {} {} {} {} {}",
                                 domain_result,
                                 title.cyan(),
                                 body_match.red(),
-                                sc.to_string().bold().blue(),
+                                status_code.blue(),
                                 header_match.red(),
-                                tech.purple(),
+                                tech_str.purple(),
                             );
                         }
                         if sc >= 400 && sc < 500 {
                             // print the final results
                             println!(
-                                "{} [{}] [{}] [{}] [{}] [{}]",
+                                "{} {} {} {} {} {}",
                                 domain_result,
                                 title.cyan(),
                                 body_match.red(),
-                                sc.to_string().bold().cyan(),
+                                status_code.magenta(),
                                 header_match.red(),
-                                tech.purple(),
+                                tech_str.purple(),
                             );
                         }
                         if sc >= 500 && sc < 600 {
                             // print the final results
                             println!(
-                                "{} [{}] [{}] [{}] [{}] [{}]",
+                                "{} {} {} {} {} {}",
                                 domain_result,
                                 title.cyan(),
                                 body_match.red(),
-                                sc.to_string().bold().red(),
+                                status_code.red(),
                                 header_match.red(),
-                                tech.purple(),
+                                tech_str.purple(),
                             );
                         }
                     } else {
                         // print the final results
                         println!(
-                            "{} [{}] [{}] [{}] [{}]",
+                            "{} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
                             body_match.red(),
+                            status_code.bold().white(),
                             header_match.red(),
-                            tech.purple(),
+                            tech_str.purple(),
                         );
                     }
                 }
@@ -637,22 +667,29 @@ pub async fn run_detector(
                 };
 
                 let mut header_match = String::from("");
-                let headers = resp.headers();
-                for (k, v) in headers.iter() {
-                    let header_value = match v.to_str() {
-                        Ok(header_value) => header_value,
-                        Err(_) => "",
-                    };
-                    let header_str =
-                        String::from(format!("{}:{}", k.as_str().to_string(), header_value));
-                    let re = match regex::Regex::new(&job_header_regex) {
-                        Ok(re) => re,
-                        Err(_) => continue,
-                    };
-                    for m_str in re.captures_iter(&header_str) {
-                        if m_str.len() > 0 {
-                            let str_match = m_str[m_str.len() - 1].to_string();
-                            header_match.push_str(&str_match);
+                if !job_header_regex.is_empty() {
+                    let headers = resp.headers();
+                    for (k, v) in headers.iter() {
+                        let header_value = match v.to_str() {
+                            Ok(header_value) => header_value,
+                            Err(_) => "",
+                        };
+                        let header_str =
+                            String::from(format!("{}:{}", k.as_str().to_string(), header_value));
+                        let re = match regex::Regex::new(&job_header_regex) {
+                            Ok(re) => re,
+                            Err(_) => continue,
+                        };
+                        for m_str in re.captures_iter(&header_str) {
+                            if m_str.len() > 0 {
+                                let str_match = m_str[m_str.len() - 1].to_string();
+                                if !str_match.is_empty() {
+                                    header_match.push_str("[");
+                                    header_match.push_str(&str_match);
+                                    header_match.push_str("]");
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
@@ -672,8 +709,12 @@ pub async fn run_detector(
                     };
                     for cap in re.captures_iter(&body) {
                         if cap.len() > 0 {
-                            title.push_str(&cap[1].to_string());
-                            break;
+                            if !cap[1].to_string().is_empty() {
+                                title.push_str("[");
+                                title.push_str(&cap[1].to_string());
+                                title.push_str("]");
+                                break;
+                            }
                         }
                     }
                 }
@@ -695,97 +736,113 @@ pub async fn run_detector(
                         Ok(tech_result) => tech_result,
                         Err(_) => continue,
                     };
+                    let mut tech_name = String::from("");
                     for tech in tech_result.iter() {
-                        tech_str.push_str(&tech.name);
-                        tech_str.push_str(",");
+                        tech_name.push_str(&tech.name);
+                        tech_name.push_str(",");
+                    }
+                    if !tech_name.is_empty() {
+                        tech_str.push_str("[");
+                        let tech = match tech_name.strip_suffix(",") {
+                            Some(tech) => tech.to_string(),
+                            None => "".to_string(),
+                        };
+                        tech_str.push_str(&tech.to_string());
+                        tech_str.push_str("]");
                     }
                 }
-                let tech = match tech_str.strip_suffix(",") {
-                    Some(tech) => tech.to_string(),
-                    None => "".to_string(),
-                };
 
                 let mut body_match = String::from("");
-                for m_str in re.captures_iter(&body) {
-                    if m_str.len() > 0 {
-                        let str_match = m_str[m_str.len() - 1].to_string();
-                        body_match.push_str(&str_match);
-                        break;
+                if !job_body_regex.is_empty() {
+                    for m_str in re.captures_iter(&body) {
+                        if m_str.len() > 0 {
+                            let str_match = m_str[m_str.len() - 1].to_string();
+                            if !str_match.is_empty() {
+                                body_match.push_str("[");
+                                body_match.push_str(&str_match);
+                                body_match.push_str("]");
+                                break;
+                            }
+                        }
                     }
                 }
 
-                let sc = response.status().as_u16();
-
+                let mut status_code = String::from("");
                 if job_status_codes {
+                    let sc = response.status().as_u16();
+                    status_code.push_str("[");
+                    status_code.push_str(&sc.to_string());
+                    status_code.push_str("]");
                     if sc >= 100 && sc < 200 {
                         // print the final results
                         println!(
-                            "{} [{}] [{}] [{}] [{}] [{}]",
+                            "{} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
                             body_match.red(),
-                            sc.to_string().bold().white(),
+                            status_code.white(),
                             header_match.red(),
-                            tech.purple(),
+                            tech_str.purple(),
                         );
                     }
                     if sc >= 200 && sc < 300 {
                         // print the final results
                         println!(
-                            "{} [{}] [{}] [{}] [{}] [{}]",
+                            "{} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
                             body_match.red(),
-                            sc.to_string().bold().green(),
+                            status_code.green(),
                             header_match.red(),
-                            tech.purple(),
+                            tech_str.purple(),
                         );
                     }
                     if sc >= 300 && sc < 400 {
                         // print the final results
                         println!(
-                            "{} [{}] [{}] [{}] [{}] [{}]",
+                            "{} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
                             body_match.red(),
-                            sc.to_string().bold().blue(),
+                            status_code.blue(),
                             header_match.red(),
-                            tech.purple(),
+                            tech_str.purple(),
                         );
                     }
                     if sc >= 400 && sc < 500 {
                         // print the final results
                         println!(
-                            "{} [{}] [{}] [{}] [{}] [{}]",
+                            "{} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
                             body_match.red(),
-                            sc.to_string().bold().cyan(),
+                            status_code.magenta(),
                             header_match.red(),
-                            tech.purple(),
+                            tech_str.purple(),
                         );
                     }
                     if sc >= 500 && sc < 600 {
                         // print the final results
                         println!(
-                            "{} [{}] [{}] [{}] [{}] [{}]",
+                            "{} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
                             body_match.red(),
-                            sc.to_string().bold().red(),
+                            status_code.red(),
                             header_match.red(),
-                            tech.purple(),
+                            tech_str.purple(),
                         );
                     }
                 } else {
                     // print the final results
                     println!(
-                        "{} [{}] [{}] [{}] [{}]",
+                        "{} {} {} {} {} {}",
                         domain_result,
                         title.cyan(),
                         body_match.red(),
+                        status_code.white(),
                         header_match.red(),
-                        tech.purple(),
+                        tech_str.purple(),
                     );
                 }
             }
