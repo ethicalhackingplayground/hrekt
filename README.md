@@ -36,6 +36,7 @@ mv target/release/hrekt /bin/hrekt
 ```
 
 #### Already been installed
+```bash
 cargo build -r
 mv target/release/hrekt /<user>/.cargo/bin/
 ```
