@@ -20,6 +20,7 @@ pub struct Job {
     ports: Option<String>,
     display_title: Option<bool>,
     display_tech: Option<bool>,
+    status_codes: Option<bool>,
     path: Option<String>,
 }
 
@@ -111,12 +112,20 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 .help("display the technology used"),
         )
         .arg(
+            Arg::with_name("status-code")
+                .long("status-code")
+                .short('s')
+                .takes_value(false)
+                .display_order(8)
+                .help("display the status-codes"),
+        )
+        .arg(
             Arg::with_name("path")
                 .long("path")
                 .short('x')
                 .default_value("")
                 .takes_value(true)
-                .display_order(8)
+                .display_order(9)
                 .help("probe the specified path"),
         )
         .arg(
@@ -125,7 +134,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 .short('b')
                 .default_value("")
                 .takes_value(true)
-                .display_order(9)
+                .display_order(10)
                 .help("regex to be used to match a specific pattern in the response"),
         )
         .arg(
@@ -134,7 +143,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 .short('h')
                 .default_value("")
                 .takes_value(true)
-                .display_order(10)
+                .display_order(11)
                 .help("regex to be used to match a specific pattern in the header"),
         )
         .arg(
@@ -142,7 +151,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 .short('l')
                 .long("follow-redirects")
                 .takes_value(false)
-                .display_order(11)
+                .display_order(12)
                 .help("follow http redirects"),
         )
         .arg(
@@ -150,7 +159,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 .short('q')
                 .long("silent")
                 .takes_value(false)
-                .display_order(12)
+                .display_order(13)
                 .help("suppress output"),
         )
         .get_matches();
@@ -159,6 +168,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     if !silent {
         print_banner();
     }
+
+    let status_codes = matches.is_present("status-code");
 
     let rate = match matches.value_of("rate").unwrap().parse::<u32>() {
         Ok(n) => n,
@@ -230,6 +241,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             ports,
             display_title,
             display_tech,
+            status_codes,
             path,
             rate,
         )
@@ -273,6 +285,7 @@ async fn send_url(
     ports: String,
     display_title: bool,
     display_tech: bool,
+    status_codes: bool,
     path: String,
     rate: u32,
 ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
@@ -291,6 +304,7 @@ async fn send_url(
             display_title: Some(display_title.clone()),
             display_tech: Some(display_tech.clone()),
             path: Some(path.clone()),
+            status_codes: Some(status_codes.clone()),
         };
         if let Err(err) = tx.send(msg) {
             eprintln!("{}", err.to_string());
@@ -343,6 +357,7 @@ pub async fn run_detector(
 
     while let Ok(job) = rx.recv() {
         let job_host: String = job.host.unwrap();
+        let job_status_codes = job.status_codes.unwrap();
         let job_body_regex = job.body_regex.unwrap();
         let job_header_regex = job.header_regex.unwrap();
         let job_path = job.path.unwrap();
@@ -497,15 +512,81 @@ pub async fn run_detector(
                             break;
                         }
                     }
-                    // print the final results
-                    println!(
-                        "{} [{}] [{}] [{}] [{}]",
-                        domain_result,
-                        title.cyan(),
-                        body_match.red(),
-                        header_match.red(),
-                        tech.purple(),
-                    );
+
+                    let sc = resp.status().as_u16();
+
+                    if job_status_codes {
+                        if sc >= 100 && sc < 200 {
+                            // print the final results
+                            println!(
+                                "{} [{}] [{}] [{}] [{}] [{}]",
+                                domain_result,
+                                title.cyan(),
+                                body_match.red(),
+                                sc.to_string().bold().white(),
+                                header_match.red(),
+                                tech.purple(),
+                            );
+                        }
+                        if sc >= 200 && sc < 300 {
+                            // print the final results
+                            println!(
+                                "{} [{}] [{}] [{}] [{}] [{}]",
+                                domain_result,
+                                title.cyan(),
+                                body_match.red(),
+                                sc.to_string().bold().green(),
+                                header_match.red(),
+                                tech.purple(),
+                            );
+                        }
+                        if sc >= 300 && sc < 400 {
+                            // print the final results
+                            println!(
+                                "{} [{}] [{}] [{}] [{}] [{}]",
+                                domain_result,
+                                title.cyan(),
+                                body_match.red(),
+                                sc.to_string().bold().blue(),
+                                header_match.red(),
+                                tech.purple(),
+                            );
+                        }
+                        if sc >= 400 && sc < 500 {
+                            // print the final results
+                            println!(
+                                "{} [{}] [{}] [{}] [{}] [{}]",
+                                domain_result,
+                                title.cyan(),
+                                body_match.red(),
+                                sc.to_string().bold().cyan(),
+                                header_match.red(),
+                                tech.purple(),
+                            );
+                        }
+                        if sc >= 500 && sc < 600 {
+                            // print the final results
+                            println!(
+                                "{} [{}] [{}] [{}] [{}] [{}]",
+                                domain_result,
+                                title.cyan(),
+                                body_match.red(),
+                                sc.to_string().bold().red(),
+                                header_match.red(),
+                                tech.purple(),
+                            );
+                        }
+                    } else {
+                        // print the final results
+                        println!(
+                            "{} [{}] [{}] [{}] [{}]",
+                            domain_result,
+                            title.cyan(),
+                            body_match.red(),
+                            header_match.red(),
+                            tech.purple(),
+                        );
+                    }
                 }
             } else {
                 let browser_instance = browser.clone();
@@ -602,16 +683,81 @@ pub async fn run_detector(
                         break;
                     }
                 }
-                // print the final results
-                // print the final results
-                println!(
-                    "{} [{}] [{}] [{}] [{}]",
-                    domain_result,
-                    title.cyan(),
-                    body_match.red(),
-                    header_match.red(),
-                    tech.purple(),
-                );
+
+                let sc = resp.status().as_u16();
+
+                if job_status_codes {
+                    if sc >= 100 && sc < 200 {
+                        // print the final results
+                        println!(
+                            "{} [{}] [{}] [{}] [{}] [{}]",
+                            domain_result,
+                            title.cyan(),
+                            body_match.red(),
+                            sc.to_string().bold().white(),
+                            header_match.red(),
+                            tech.purple(),
+                        );
+                    }
+                    if sc >= 200 && sc < 300 {
+                        // print the final results
+                        println!(
+                            "{} [{}] [{}] [{}] [{}] [{}]",
+                            domain_result,
+                            title.cyan(),
+                            body_match.red(),
+                            sc.to_string().bold().green(),
+                            header_match.red(),
+                            tech.purple(),
+                        );
+                    }
+                    if sc >= 300 && sc < 400 {
+                        // print the final results
+                        println!(
+                            "{} [{}] [{}] [{}] [{}] [{}]",
+                            domain_result,
+                            title.cyan(),
+                            body_match.red(),
+                            sc.to_string().bold().blue(),
+                            header_match.red(),
+                            tech.purple(),
+                        );
+                    }
+                    if sc >= 400 && sc < 500 {
+                        // print the final results
+                        println!(
+                            "{} [{}] [{}] [{}] [{}] [{}]",
+                            domain_result,
+                            title.cyan(),
+                            body_match.red(),
+                            sc.to_string().bold().cyan(),
+                            header_match.red(),
+                            tech.purple(),
+                        );
+                    }
+                    if sc >= 500 && sc < 600 {
+                        // print the final results
+                        println!(
+                            "{} [{}] [{}] [{}] [{}] [{}]",
+                            domain_result,
+                            title.cyan(),
+                            body_match.red(),
+                            sc.to_string().bold().red(),
+                            header_match.red(),
+                            tech.purple(),
+                        );
+                    }
+                } else {
+                    // print the final results
+                    println!(
+                        "{} [{}] [{}] [{}] [{}]",
+                        domain_result,
+                        title.cyan(),
+                        body_match.red(),
+                        header_match.red(),
+                        tech.purple(),
+                    );
+                }
             }
         }
     }

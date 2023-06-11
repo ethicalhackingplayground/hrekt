@@ -21,6 +21,6 @@ regex = "1.7.3"
 tokio-dns-unofficial = "0.4.0"
 async-std = "1.12.0"
 port-selector = "0.1.6"
-reqwest = { version = "0.11.14", features = ["native-tls", "blocking"] }
+reqwest = { version = "0.11.14", features = ["blocking"] }
 wappalyzer = { git = "https://github.com/ethicalhackingplayground/wappalyzer", rev = "a2c1a8fc" }
 headless_chrome = {git = "https://github.com/ethicalhackingplayground/rust-headless-chrome", rev = "3c7488b5", features = ["fetch"]}
