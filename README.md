@@ -81,6 +81,9 @@ OPTIONS:
     -d, --tech-detect
             display the technology used
 
+    -s, --status-code
+            display the status-codes
+
     -x, --path <path>
             probe the specified path [default: ]
 
