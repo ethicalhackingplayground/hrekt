@@ -57,54 +57,78 @@ Can only be compiled locally right now.
 ## Usage
 
 ```bash
-USAGE:
-    hrekt [OPTIONS]
+Usage: hrekt [OPTIONS]
 
-OPTIONS:
-    -r, --rate <rate>
-            Maximum in-flight requests per second [default: 1000]
+Options:
+  -r, --rate <rate>
+          Maximum in-flight requests per second
+          
+          [default: 1000]
 
-    -c, --concurrency <concurrency>
-            The amount of concurrent requests [default: 100]
+  -c, --concurrency <concurrency>
+          The amount of concurrent requests
+          
+          [default: 100]
 
-    -t, --timeout <timeout>
-            The delay between each request [default: 3]
+  -t, --timeout <timeout>
+          The delay between each request
+          
+          [default: 3]
 
-    -w, --workers <workers>
-            The amount of workers [default: 1]
+  -w, --workers <workers>
+          The amount of workers
+          
+          [default: 1]
 
-    -p, --ports <ports>
-            the ports to probe default ports are (80,443) [default: 80,443]
+  -p, --ports <ports>
+          the ports to probe default ports are (80,443)
+          
+          [default: 80,443]
 
-    -i, --title
-            display the page titles
+      --title
+          display the page titles
 
-    -d, --tech-detect
-            display the technology used
+      --tech-detect
+          display the technology used
 
-    -s, --status-code
-            display the status-codes
+      --status-code
+          display the status-codes
 
-    -x, --path <path>
-            probe the specified path [default: ]
+      --server
+          displays the server
 
-    -b, --body-regex <body-regex>
-            regex to be used to match a specific pattern in the response [default: ]
+      --content-type
+          displays the content type
 
-    -h, --header-regex <header-regex>
-            regex to be used to match a specific pattern in the header [default: ]
+      --content-length
+          displays the content length
 
-    -l, --follow-redirects
-            follow http redirects
+  -x, --path <path>
+          probe the specified path
+          
+          [default: ]
 
-    -q, --silent
-            suppress output
+      --body-regex <body-regex>
+          regex to be used to match a specific pattern in the response
+          
+          [default: ]
 
-        --help
-            Print help information
+      --header-regex <header-regex>
+          regex to be used to match a specific pattern in the header
+          
+          [default: ]
 
-    -V, --version
-            Print version information
+  -l, --follow-redirects
+          follow http redirects
+
+  -q, --silent
+          suppress output
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
 ```
 
 ---
