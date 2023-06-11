@@ -1,6 +1,6 @@
 use async_std::io;
 use async_std::io::prelude::*;
-use clap::{App, Arg};
+use clap::{Arg, ArgAction, Command};
 use colored::Colorize;
 use futures::{stream::FuturesUnordered, StreamExt};
 use governor::{Quota, RateLimiter};
@@ -21,6 +21,9 @@ pub struct Job {
     display_title: Option<bool>,
     display_tech: Option<bool>,
     status_codes: Option<bool>,
+    content_length: Option<bool>,
+    content_type: Option<bool>,
+    server: Option<bool>,
     path: Option<String>,
 }
 
@@ -46,166 +49,199 @@ fn print_banner() {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // parse the cli arguments
-    let matches = App::new("hrekt")
+    let matches = Command::new("hrekt")
         .version("0.1.6")
         .author("Blake Jacobs <krypt0mux@gmail.com>")
         .about("really fast http prober")
         .arg(
-            Arg::with_name("rate")
+            Arg::new("rate")
                 .short('r')
                 .long("rate")
-                .takes_value(true)
                 .default_value("1000")
                 .display_order(1)
                 .help("Maximum in-flight requests per second"),
         )
         .arg(
-            Arg::with_name("concurrency")
+            Arg::new("concurrency")
                 .short('c')
                 .long("concurrency")
                 .default_value("100")
-                .takes_value(true)
                 .display_order(2)
                 .help("The amount of concurrent requests"),
         )
         .arg(
-            Arg::with_name("timeout")
+            Arg::new("timeout")
                 .short('t')
                 .long("timeout")
                 .default_value("3")
-                .takes_value(true)
                 .display_order(3)
                 .help("The delay between each request"),
         )
         .arg(
-            Arg::with_name("workers")
+            Arg::new("workers")
                 .short('w')
                 .long("workers")
                 .default_value("1")
-                .takes_value(true)
                 .display_order(4)
                 .help("The amount of workers"),
         )
         .arg(
-            Arg::with_name("ports")
+            Arg::new("ports")
                 .short('p')
                 .long("ports")
                 .default_value("80,443")
-                .takes_value(true)
                 .display_order(5)
                 .help("the ports to probe default ports are (80,443)"),
         )
         .arg(
-            Arg::with_name("title")
+            Arg::new("title")
                 .long("title")
-                .short('i')
-                .takes_value(false)
+                .hide_short_help(true)
+                .action(ArgAction::SetFalse)
                 .display_order(6)
                 .help("display the page titles"),
         )
         .arg(
-            Arg::with_name("tech-detect")
+            Arg::new("tech-detect")
                 .long("tech-detect")
-                .short('d')
-                .takes_value(false)
+                .hide_short_help(true)
+                .action(ArgAction::SetFalse)
                 .display_order(7)
                 .help("display the technology used"),
         )
         .arg(
-            Arg::with_name("status-code")
+            Arg::new("status-code")
                 .long("status-code")
-                .short('s')
-                .takes_value(false)
+                .hide_short_help(true)
+                .action(ArgAction::SetFalse)
                 .display_order(8)
                 .help("display the status-codes"),
         )
         .arg(
-            Arg::with_name("path")
+            Arg::new("server")
+                .long("server")
+                .action(ArgAction::SetFalse)
+                .display_order(9)
+                .help("displays the server"),
+        )
+        .arg(
+            Arg::new("content-type")
+                .long("content-type")
+                .hide_short_help(true)
+                .action(ArgAction::SetFalse)
+                .display_order(10)
+                .help("displays the content type"),
+        )
+        .arg(
+            Arg::new("content-length")
+                .long("content-length")
+                .hide_short_help(true)
+                .action(ArgAction::SetFalse)
+                .display_order(11)
+                .help("displays the content length"),
+        )
+        .arg(
+            Arg::new("path")
                 .long("path")
                 .short('x')
                 .default_value("")
-                .takes_value(true)
-                .display_order(9)
+                .display_order(12)
                 .help("probe the specified path"),
         )
         .arg(
-            Arg::with_name("body-regex")
+            Arg::new("body-regex")
                 .long("body-regex")
-                .short('b')
+                .hide_short_help(true)
                 .default_value("")
-                .takes_value(true)
-                .display_order(10)
+                .display_order(13)
                 .help("regex to be used to match a specific pattern in the response"),
         )
         .arg(
-            Arg::with_name("header-regex")
+            Arg::new("header-regex")
                 .long("header-regex")
-                .short('h')
+                .hide_short_help(true)
                 .default_value("")
-                .takes_value(true)
-                .display_order(11)
+                .display_order(14)
                 .help("regex to be used to match a specific pattern in the header"),
         )
         .arg(
-            Arg::with_name("follow-redirects")
+            Arg::new("follow-redirects")
                 .short('l')
                 .long("follow-redirects")
-                .takes_value(false)
-                .display_order(12)
+                .action(ArgAction::SetFalse)
+                .display_order(15)
                 .help("follow http redirects"),
         )
         .arg(
-            Arg::with_name("silent")
+            Arg::new("silent")
                 .short('q')
                 .long("silent")
-                .takes_value(false)
-                .display_order(13)
+                .action(ArgAction::SetFalse)
+                .display_order(16)
                 .help("suppress output"),
         )
         .get_matches();
 
-    let silent = matches.is_present("silent");
+    let silent = matches.contains_id("silent");
     if !silent {
         print_banner();
     }
 
-    let status_codes = matches.is_present("status-code");
+    let status_codes = matches.contains_id("status-code");
 
-    let rate = match matches.value_of("rate").unwrap().parse::<u32>() {
-        Ok(n) => n,
+    let rate = match matches.get_one::<String>("rate").unwrap().parse::<String>() {
+        Ok(n) => n.parse::<u32>().unwrap(),
         Err(_) => {
             println!("{}", "could not parse rate, using default of 1000");
             1000
         }
     };
 
-    let body_regex = match matches.value_of("body-regex").unwrap().parse::<String>() {
+    let body_regex = match matches
+        .get_one::<String>("body-regex")
+        .unwrap()
+        .parse::<String>()
+    {
         Ok(body_regex) => body_regex,
         Err(_) => "".to_string(),
     };
 
-    let header_regex = match matches.value_of("header-regex").unwrap().parse::<String>() {
+    let header_regex = match matches
+        .get_one::<String>("header-regex")
+        .unwrap()
+        .parse::<String>()
+    {
         Ok(header_regex) => header_regex,
         Err(_) => "".to_string(),
     };
 
-    let ports = match matches.value_of("ports").unwrap().parse::<String>() {
+    let ports = match matches
+        .get_one::<String>("ports")
+        .unwrap()
+        .parse::<String>()
+    {
         Ok(ports) => ports,
         Err(_) => "".to_string(),
     };
 
-    let path = match matches.value_of("path").unwrap().parse::<String>() {
+    let path = match matches.get_one::<String>("path").unwrap().parse::<String>() {
         Ok(path) => path,
         Err(_) => "".to_string(),
     };
 
-    let display_title = matches.is_present("title");
-    let display_tech = matches.is_present("tech-detect");
-    let follow_redirects = matches.is_present("follow-redirects");
+    let display_title = matches.contains_id("title");
+    let display_tech = matches.contains_id("tech-detect");
+    let follow_redirects = matches.contains_id("follow-redirects");
+    let content_length = matches.contains_id("content-length");
+    let content_type = matches.contains_id("content-type");
+    let server = matches.contains_id("server");
 
-    let concurrency = match matches.value_of("concurrency").unwrap().parse::<u32>() {
-        Ok(n) => n,
-        Err(_) => {
+    let concurrency = match matches
+        .get_one::<String>("concurrency")
+        .map(|s| s.to_string())
+    {
+        Some(n) => n.parse::<i32>().unwrap(),
+        None => {
             println!("{}", "could not parse concurrency, using default of 100");
             100
         }
@@ -216,9 +252,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         None => 3,
     };
 
-    let w: usize = match matches.value_of("workers").unwrap().parse::<usize>() {
-        Ok(w) => w,
-        Err(_) => {
+    let w: usize = match matches.get_one::<String>("workers").map(|s| s.to_string()) {
+        Some(w) => w.parse::<usize>().unwrap(),
+        None => {
             println!("{}", "could not parse workers, using default of 1");
             1
         }
@@ -255,6 +291,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             display_title,
             display_tech,
             status_codes,
+            content_type,
+            content_length,
+            server,
             path,
             rate,
         )
@@ -300,6 +339,9 @@ async fn send_url(
     display_title: bool,
     display_tech: bool,
     status_codes: bool,
+    content_type: bool,
+    content_length: bool,
+    server: bool,
     path: String,
     rate: u32,
 ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
@@ -318,6 +360,9 @@ async fn send_url(
             display_tech: Some(display_tech.clone()),
             path: Some(path.clone()),
             status_codes: Some(status_codes.clone()),
+            content_length: Some(content_length.clone()),
+            content_type: Some(content_type.clone()),
+            server: Some(server.clone()),
         };
         if let Err(err) = tx.send(msg) {
             eprintln!("{}", err.to_string());
@@ -369,6 +414,9 @@ pub async fn run_detector(
     while let Ok(job) = rx.recv() {
         let job_host: String = job.host.unwrap();
         let job_status_codes = job.status_codes.unwrap();
+        let job_content_length = job.content_length.unwrap();
+        let job_content_type = job.content_type.unwrap();
+        let job_server = job.server.unwrap();
         let job_body_regex = job.body_regex.unwrap();
         let job_header_regex = job.header_regex.unwrap();
         let job_path = job.path.unwrap();
@@ -442,6 +490,94 @@ pub async fn run_detector(
                             continue;
                         }
                     };
+
+                    let mut content_length = String::from("");
+
+                    if job_content_length {
+                        let domain_result_2 = domain_result_cloned.clone();
+                        let get_request = client.get(domain_result_2);
+                        let request = match get_request.build() {
+                            Ok(req) => req,
+                            Err(_) => {
+                                continue;
+                            }
+                        };
+                        let response = match client.execute(request).await {
+                            Ok(resp) => resp,
+                            Err(_) => {
+                                continue;
+                            }
+                        };
+                        content_length.push_str("[");
+                        let cl = match response.content_length() {
+                            Some(cl) => cl.to_string(),
+                            None => "".to_string(),
+                        };
+                        content_length.push_str(&cl);
+                        content_length.push_str("]");
+                    }
+
+                    let mut content_type = String::from("");
+
+                    if job_content_type {
+                        let domain_result_2 = domain_result_cloned.clone();
+                        let get_request = client.get(domain_result_2);
+                        let request = match get_request.build() {
+                            Ok(req) => req,
+                            Err(_) => {
+                                continue;
+                            }
+                        };
+                        let response = match client.execute(request).await {
+                            Ok(resp) => resp,
+                            Err(_) => {
+                                continue;
+                            }
+                        };
+                        let ct = match response.headers().get("Content-Type") {
+                            Some(ct) => match ct.to_str() {
+                                Ok(ct) => ct.to_string(),
+                                Err(_) => continue,
+                            },
+                            None => "".to_string(),
+                        };
+                        if !ct.is_empty() {
+                            content_type.push_str("[");
+                            content_type.push_str(&ct);
+                            content_type.push_str("]");
+                        }
+                    }
+
+                    let mut server = String::from("");
+
+                    if job_server {
+                        let domain_result_2 = domain_result_cloned.clone();
+                        let get_request = client.get(domain_result_2);
+                        let request = match get_request.build() {
+                            Ok(req) => req,
+                            Err(_) => {
+                                continue;
+                            }
+                        };
+                        let response = match client.execute(request).await {
+                            Ok(resp) => resp,
+                            Err(_) => {
+                                continue;
+                            }
+                        };
+                        let s = match response.headers().get("Server") {
+                            Some(s) => match s.to_str() {
+                                Ok(s) => s.to_string(),
+                                Err(_) => continue,
+                            },
+                            None => "".to_string(),
+                        };
+                        if !server.is_empty() {
+                            server.push_str("[");
+                            server.push_str(&s);
+                            server.push_str("]");
+                        }
+                    }
 
                     let get_request = client.get(domain_result_cloned);
                     let request = match get_request.build() {
@@ -574,73 +710,91 @@ pub async fn run_detector(
                         if sc >= 100 && sc < 200 {
                             // print the final results
                             println!(
-                                "{} {} {} {} {} {}",
+                                "{} {} {} {} {} {} {} {} {}",
                                 domain_result,
                                 title.cyan(),
                                 body_match.red(),
                                 status_code.white(),
                                 header_match.red(),
                                 tech_str.purple(),
+                                content_type,
+                                content_length,
+                                server
                             );
                         }
                         if sc >= 200 && sc < 300 {
                             // print the final results
                             println!(
-                                "{} {} {} {} {} {}",
+                                "{} {} {} {} {} {} {} {} {}",
                                 domain_result,
                                 title.cyan(),
                                 body_match.red(),
                                 status_code.green(),
                                 header_match.red(),
                                 tech_str.purple(),
+                                content_type,
+                                content_length,
+                                server
                             );
                         }
                         if sc >= 300 && sc < 400 {
                             // print the final results
                             println!(
-                                "{} {} {} {} {} {}",
+                                "{} {} {} {} {} {} {} {} {}",
                                 domain_result,
                                 title.cyan(),
                                 body_match.red(),
                                 status_code.blue(),
                                 header_match.red(),
                                 tech_str.purple(),
+                                content_type,
+                                content_length,
+                                server
                             );
                         }
                         if sc >= 400 && sc < 500 {
                             // print the final results
                             println!(
-                                "{} {} {} {} {} {}",
+                                "{} {} {} {} {} {} {} {} {}",
                                 domain_result,
                                 title.cyan(),
                                 body_match.red(),
-                                status_code.magenta(),
+                                status_code.cyan(),
                                 header_match.red(),
                                 tech_str.purple(),
+                                content_type,
+                                content_length,
+                                server
                             );
                         }
                         if sc >= 500 && sc < 600 {
                             // print the final results
                             println!(
-                                "{} {} {} {} {} {}",
+                                "{} {} {} {} {} {} {} {} {}",
                                 domain_result,
                                 title.cyan(),
                                 body_match.red(),
                                 status_code.red(),
                                 header_match.red(),
                                 tech_str.purple(),
+                                content_type,
+                                content_length,
+                                server
                             );
                         }
                     } else {
                         // print the final results
                         println!(
-                            "{} {} {} {} {} {}",
+                            "{} {} {} {} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
                             body_match.red(),
-                            status_code.bold().white(),
+                            status_code.white(),
                             header_match.red(),
                             tech_str.purple(),
+                            content_type,
+                            content_length,
+                            server
                         );
                     }
                 }
@@ -649,6 +803,7 @@ pub async fn run_detector(
                 let url = String::from(domain_cp);
                 let url_cloned = url.clone();
                 let domain_result = url.clone();
+                let domain_result_cloned = domain_result.clone();
                 let get = client.get(url);
                 let req = match get.build() {
                     Ok(req) => req,
@@ -676,6 +831,93 @@ pub async fn run_detector(
                         continue;
                     }
                 };
+
+                let mut content_length = String::from("");
+
+                if job_content_length {
+                    let domain_result_cloned_2 = domain_result_cloned.clone();
+                    let get_request = client.get(domain_result_cloned_2);
+                    let request = match get_request.build() {
+                        Ok(req) => req,
+                        Err(_) => {
+                            continue;
+                        }
+                    };
+                    let response = match client.execute(request).await {
+                        Ok(resp) => resp,
+                        Err(_) => {
+                            continue;
+                        }
+                    };
+                    content_length.push_str("[");
+                    let cl = match response.content_length() {
+                        Some(cl) => cl.to_string(),
+                        None => "".to_string(),
+                    };
+                    content_length.push_str(&cl);
+                    content_length.push_str("]");
+                }
+
+                let mut content_type = String::from("");
+
+                if job_content_type {
+                    let domain_result_cloned_2 = domain_result_cloned.clone();
+                    let get_request = client.get(domain_result_cloned_2);
+                    let request = match get_request.build() {
+                        Ok(req) => req,
+                        Err(_) => {
+                            continue;
+                        }
+                    };
+                    let response = match client.execute(request).await {
+                        Ok(resp) => resp,
+                        Err(_) => {
+                            continue;
+                        }
+                    };
+
+                    let ct = match response.headers().get("Content-Type") {
+                        Some(ct) => match ct.to_str() {
+                            Ok(ct) => ct.to_string(),
+                            Err(_) => continue,
+                        },
+                        None => "".to_string(),
+                    };
+                    if !ct.is_empty() {
+                        content_type.push_str("[");
+                        content_type.push_str(&ct);
+                        content_type.push_str("]");
+                    }
+                }
+                let mut server = String::from("");
+                if job_server {
+                    let domain_result_cloned_2 = domain_result_cloned.clone();
+                    let get_request = client.get(domain_result_cloned_2);
+                    let request = match get_request.build() {
+                        Ok(req) => req,
+                        Err(_) => {
+                            continue;
+                        }
+                    };
+                    let response = match client.execute(request).await {
+                        Ok(resp) => resp,
+                        Err(_) => {
+                            continue;
+                        }
+                    };
+                    let s = match response.headers().get("Server") {
+                        Some(s) => match s.to_str() {
+                            Ok(s) => s.to_string(),
+                            Err(_) => continue,
+                        },
+                        None => "".to_string(),
+                    };
+                    if !s.is_empty() {
+                        server.push_str("[");
+                        server.push_str(&s);
+                        server.push_str("]");
+                    }
+                }
 
                 let mut header_match = String::from("");
                 if !job_header_regex.is_empty() {
@@ -787,73 +1029,91 @@ pub async fn run_detector(
                     if sc >= 100 && sc < 200 {
                         // print the final results
                         println!(
-                            "{} {} {} {} {} {}",
+                            "{} {} {} {} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
                             body_match.red(),
                             status_code.white(),
                             header_match.red(),
                             tech_str.purple(),
+                            content_type,
+                            content_length,
+                            server
                         );
                     }
                     if sc >= 200 && sc < 300 {
                         // print the final results
                         println!(
-                            "{} {} {} {} {} {}",
+                            "{} {} {} {} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
                             body_match.red(),
                             status_code.green(),
                             header_match.red(),
                             tech_str.purple(),
+                            content_type,
+                            content_length,
+                            server
                         );
                     }
                     if sc >= 300 && sc < 400 {
                         // print the final results
                         println!(
-                            "{} {} {} {} {} {}",
+                            "{} {} {} {} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
                             body_match.red(),
                             status_code.blue(),
                             header_match.red(),
                             tech_str.purple(),
+                            content_type,
+                            content_length,
+                            server
                         );
                     }
                     if sc >= 400 && sc < 500 {
                         // print the final results
                         println!(
-                            "{} {} {} {} {} {}",
+                            "{} {} {} {} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
                             body_match.red(),
-                            status_code.magenta(),
+                            status_code.cyan(),
                             header_match.red(),
                             tech_str.purple(),
+                            content_type,
+                            content_length,
+                            server
                         );
                     }
                     if sc >= 500 && sc < 600 {
                         // print the final results
                         println!(
-                            "{} {} {} {} {} {}",
+                            "{} {} {} {} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
                             body_match.red(),
                             status_code.red(),
                             header_match.red(),
                             tech_str.purple(),
+                            content_type,
+                            content_length,
+                            server
                         );
                     }
                 } else {
                     // print the final results
                     println!(
-                        "{} {} {} {} {} {}",
+                        "{} {} {} {} {} {} {} {} {}",
                         domain_result,
                         title.cyan(),
                         body_match.red(),
                         status_code.white(),
                         header_match.red(),
                         tech_str.purple(),
+                        content_type,
+                        content_length,
+                        server
                     );
                 }
             }
