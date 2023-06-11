@@ -26,11 +26,14 @@ echo -e "[$BOLDGREEN+$ENDCOLOR] Compiling the binary..."
 cargo build -r
 # Copy the binary to /bin and chmod it with the appropriate permissions
 echo -e "[$BOLDGREEN+$ENDCOLOR] Copying the binary to /bin"
-sleep 1
 sudo cp target/release/hrekt /bin/hrekt ; sudo chmod +x /bin/hrekt
-echo -e "[$BOLDGREEN+$ENDCOLOR] Copying the binary to /usr/bin"
 sleep 1
+echo -e "[$BOLDGREEN+$ENDCOLOR] Copying the binary to /usr/bin"
 sudo cp target/release/hrekt /usr/bin/hrekt ; sudo chmod +x /usr/bin/hrekt
+sleep 1
+echo -e "[$BOLDGREEN+$ENDCOLOR] Copying the binary to ~/.cargo/bin/"
+sudo cp target/release/hrekt .cargo/bin/hrekt ; sudo chmod +x .cargo/bin/hrekt
+sleep 1
 # Print end message
 sleep 1
 echo "hrekt has been successfully built."
