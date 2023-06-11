@@ -31,17 +31,24 @@
 
 #### Fresh Installs
 ```bash
-$ cargo build -r
-$ mv target/release/hrekt /bin/hrekt
+cargo build -r
+mv target/release/hrekt /bin/hrekt
 ```
 
 #### Already been installed
-```bash
-$ cargo build -r
-$ mv target/release/hrekt /<user>/.cargo/bin/
+cargo build -r
+mv target/release/hrekt /<user>/.cargo/bin/
 ```
 
+
 Make sure to replace `<user>` with your username.
+
+or 
+
+#### Installer
+```bash
+chmod +x install.sh ; ./install.sh
+```
 
 Can only be compiled locally right now.
 
