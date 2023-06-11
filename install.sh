@@ -32,7 +32,7 @@ echo -e "[$BOLDGREEN+$ENDCOLOR] Copying the binary to /usr/bin"
 sudo cp target/release/hrekt /usr/bin/hrekt ; sudo chmod +x /usr/bin/hrekt
 sleep 1
 echo -e "[$BOLDGREEN+$ENDCOLOR] Copying the binary to ~/.cargo/bin/"
-sudo cp target/release/hrekt .cargo/bin/hrekt ; sudo chmod +x .cargo/bin/hrekt
+sudo cp target/release/hrekt ~/.cargo/bin/hrekt ; sudo chmod +x ~/.cargo/bin/hrekt
 sleep 1
 # Print end message
 sleep 1
