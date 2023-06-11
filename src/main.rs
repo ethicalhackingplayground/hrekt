@@ -97,7 +97,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             Arg::new("title")
                 .long("title")
                 .hide_short_help(true)
-                .action(ArgAction::SetFalse)
+                .action(ArgAction::SetTrue)
                 .display_order(6)
                 .help("display the page titles"),
         )
@@ -105,7 +105,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             Arg::new("tech-detect")
                 .long("tech-detect")
                 .hide_short_help(true)
-                .action(ArgAction::SetFalse)
+                .action(ArgAction::SetTrue)
                 .display_order(7)
                 .help("display the technology used"),
         )
@@ -113,14 +113,14 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             Arg::new("status-code")
                 .long("status-code")
                 .hide_short_help(true)
-                .action(ArgAction::SetFalse)
+                .action(ArgAction::SetTrue)
                 .display_order(8)
                 .help("display the status-codes"),
         )
         .arg(
             Arg::new("server")
                 .long("server")
-                .action(ArgAction::SetFalse)
+                .action(ArgAction::SetTrue)
                 .display_order(9)
                 .help("displays the server"),
         )
@@ -128,7 +128,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             Arg::new("content-type")
                 .long("content-type")
                 .hide_short_help(true)
-                .action(ArgAction::SetFalse)
+                .action(ArgAction::SetTrue)
                 .display_order(10)
                 .help("displays the content type"),
         )
@@ -136,7 +136,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             Arg::new("content-length")
                 .long("content-length")
                 .hide_short_help(true)
-                .action(ArgAction::SetFalse)
+                .action(ArgAction::SetTrue)
                 .display_order(11)
                 .help("displays the content length"),
         )
@@ -168,7 +168,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             Arg::new("follow-redirects")
                 .short('l')
                 .long("follow-redirects")
-                .action(ArgAction::SetFalse)
+                .action(ArgAction::SetTrue)
                 .display_order(15)
                 .help("follow http redirects"),
         )
@@ -176,18 +176,18 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             Arg::new("silent")
                 .short('q')
                 .long("silent")
-                .action(ArgAction::SetFalse)
+                .action(ArgAction::SetTrue)
                 .display_order(16)
                 .help("suppress output"),
         )
         .get_matches();
 
-    let silent = matches.contains_id("silent");
+    let silent = matches.get_flag("silent");
     if !silent {
         print_banner();
     }
 
-    let status_codes = matches.contains_id("status-code");
+    let status_codes = matches.get_flag("status-code");
 
     let rate = match matches.get_one::<String>("rate").unwrap().parse::<String>() {
         Ok(n) => n.parse::<u32>().unwrap(),
@@ -229,12 +229,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         Err(_) => "".to_string(),
     };
 
-    let display_title = matches.contains_id("title");
-    let display_tech = matches.contains_id("tech-detect");
-    let follow_redirects = matches.contains_id("follow-redirects");
-    let content_length = matches.contains_id("content-length");
-    let content_type = matches.contains_id("content-type");
-    let server = matches.contains_id("server");
+    let display_title = matches.get_flag("title");
+    let display_tech = matches.get_flag("tech-detect");
+    let follow_redirects = matches.get_flag("follow-redirects");
+    let content_length = matches.get_flag("content-length");
+    let content_type = matches.get_flag("content-type");
+    let server = matches.get_flag("server");
 
     let concurrency = match matches
         .get_one::<String>("concurrency")
@@ -716,7 +716,7 @@ pub async fn run_detector(
                                 body_match.red(),
                                 status_code.white(),
                                 header_match.red(),
-                                tech_str.purple(),
+                                tech_str.white().bold(),
                                 content_type,
                                 content_length,
                                 server
@@ -731,7 +731,7 @@ pub async fn run_detector(
                                 body_match.red(),
                                 status_code.green(),
                                 header_match.red(),
-                                tech_str.purple(),
+                                tech_str.white().bold(),
                                 content_type,
                                 content_length,
                                 server
@@ -746,7 +746,7 @@ pub async fn run_detector(
                                 body_match.red(),
                                 status_code.blue(),
                                 header_match.red(),
-                                tech_str.purple(),
+                                tech_str.white().bold(),
                                 content_type,
                                 content_length,
                                 server
@@ -761,7 +761,7 @@ pub async fn run_detector(
                                 body_match.red(),
                                 status_code.magenta(),
                                 header_match.red(),
-                                tech_str.purple(),
+                                tech_str.white().bold(),
                                 content_type,
                                 content_length,
                                 server
@@ -776,7 +776,7 @@ pub async fn run_detector(
                                 body_match.red(),
                                 status_code.red(),
                                 header_match.red(),
-                                tech_str.purple(),
+                                tech_str.white().bold(),
                                 content_type,
                                 content_length,
                                 server
@@ -791,7 +791,7 @@ pub async fn run_detector(
                             body_match.red(),
                             status_code.white(),
                             header_match.red(),
-                            tech_str.purple(),
+                            tech_str.white().bold(),
                             content_type,
                             content_length,
                             server
@@ -1035,7 +1035,7 @@ pub async fn run_detector(
                             body_match.red(),
                             status_code.white(),
                             header_match.red(),
-                            tech_str.purple(),
+                            tech_str.white().bold(),
                             content_type,
                             content_length,
                             server
@@ -1050,7 +1050,7 @@ pub async fn run_detector(
                             body_match.red(),
                             status_code.green(),
                             header_match.red(),
-                            tech_str.purple(),
+                            tech_str.white().bold(),
                             content_type,
                             content_length,
                             server
@@ -1065,7 +1065,7 @@ pub async fn run_detector(
                             body_match.red(),
                             status_code.blue(),
                             header_match.red(),
-                            tech_str.purple(),
+                            tech_str.white().bold(),
                             content_type,
                             content_length,
                             server
@@ -1080,7 +1080,7 @@ pub async fn run_detector(
                             body_match.red(),
                             status_code.magenta(),
                             header_match.red(),
-                            tech_str.purple(),
+                            tech_str.white().bold(),
                             content_type,
                             content_length,
                             server
@@ -1095,7 +1095,7 @@ pub async fn run_detector(
                             body_match.red(),
                             status_code.red(),
                             header_match.red(),
-                            tech_str.purple(),
+                            tech_str.white().bold(),
                             content_type,
                             content_length,
                             server
@@ -1110,7 +1110,7 @@ pub async fn run_detector(
                         body_match.red(),
                         status_code.white(),
                         header_match.red(),
-                        tech_str.purple(),
+                        tech_str.white().bold(),
                         content_type,
                         content_length,
                         server
