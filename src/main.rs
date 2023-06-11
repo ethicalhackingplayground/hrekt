@@ -224,7 +224,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         }
     };
 
-    
     // collect hosts from stdin
     let mut hosts = vec![];
     let stdin = io::BufReader::new(io::stdin());
