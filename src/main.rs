@@ -622,6 +622,10 @@ pub async fn run_detector(
                                 }
                             }
                         }
+
+                        if header_match.is_empty() {
+                            continue;
+                        }
                     }
 
                     let body = match resp.text().await {
@@ -697,6 +701,10 @@ pub async fn run_detector(
                                     break;
                                 }
                             }
+                        }
+
+                        if body_match.is_empty() {
+                            continue;
                         }
                     }
 
@@ -944,6 +952,10 @@ pub async fn run_detector(
                             }
                         }
                     }
+
+                    if header_match.is_empty() {
+                        continue;
+                    }
                 }
 
                 let body = match resp.text().await {
@@ -1016,6 +1028,9 @@ pub async fn run_detector(
                                 break;
                             }
                         }
+                    }
+                    if body_match.is_empty() {
+                        continue;
                     }
                 }
 
