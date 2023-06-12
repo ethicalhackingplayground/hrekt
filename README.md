@@ -51,6 +51,24 @@ or
 chmod +x install.sh ; ./install.sh
 ```
 
+## For Windows Users
+
+If you want to install hrekt on Windows, you are required to install `perl` & `rust`
+
+#### Dependencies
+- [https://strawberryperl.com/](https://strawberryperl.com/)
+
+#### RUST
+- [https://www.rust-lang.org/learn/get-started](https://www.rust-lang.org/learn/get-started)]
+
+Then you should be able to run
+
+```bash
+cargo install -r
+```
+
+Which will than build and compile the binary to `target/release/hrekt.exe`
+
 Can only be compiled locally right now.
 
 
