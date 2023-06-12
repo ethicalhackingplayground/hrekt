@@ -56,10 +56,8 @@ chmod +x install.sh ; ./install.sh
 If you want to install hrekt on Windows, you are required to install `perl` & `rust`
 
 #### Dependencies
-- [https://strawberryperl.com/](https://strawberryperl.com/)
-
-#### RUST
-- [https://www.rust-lang.org/learn/get-started](https://www.rust-lang.org/learn/get-started)]
+- Perl: [https://strawberryperl.com/](https://strawberryperl.com/)
+- Rust: [https://www.rust-lang.org/learn/get-started](https://www.rust-lang.org/learn/get-started)]
 
 Then you should be able to run
 
