@@ -593,7 +593,6 @@ pub async fn run_detector(
                     };
 
                     // perform the regex on the headers
-                    let mut header_match = String::from("");
                     if !job_header_regex.is_empty() {
                         let headers = resp.headers();
                         for (k, v) in headers.iter() {
@@ -610,21 +609,9 @@ pub async fn run_detector(
                                 Ok(re) => re,
                                 Err(_) => continue,
                             };
-                            for m_str in re.captures_iter(&header_str) {
-                                if m_str.len() > 0 {
-                                    let str_match = m_str[m_str.len() - 1].to_string();
-                                    if !str_match.is_empty() {
-                                        header_match.push_str("[");
-                                        header_match.push_str(&str_match);
-                                        header_match.push_str("]");
-                                        break;
-                                    }
-                                }
+                            if !re.is_match(&header_str) {
+                                continue;
                             }
-                        }
-
-                        if header_match.is_empty() {
-                            return;
                         }
                     }
 
@@ -689,22 +676,9 @@ pub async fn run_detector(
                         }
                     }
 
-                    let mut body_match = String::from("");
                     if !job_body_regex.is_empty() {
-                        for m_str in re.captures_iter(&body) {
-                            if m_str.len() > 0 {
-                                let str_match = m_str[m_str.len() - 1].to_string();
-                                if !str_match.is_empty() {
-                                    body_match.push_str("[");
-                                    body_match.push_str(&str_match);
-                                    body_match.push_str("]");
-                                    break;
-                                }
-                            }
-                        }
-
-                        if body_match.is_empty() {
-                            return;
+                        if !re.is_match(&body) {
+                            continue;
                         }
                     }
 
@@ -717,12 +691,10 @@ pub async fn run_detector(
                         if sc >= 100 && sc < 200 {
                             // print the final results
                             println!(
-                                "{} {} {} {} {} {} {} {} {}",
+                                "{} {} {} {} {} {} {}",
                                 domain_result,
                                 title.cyan(),
-                                body_match.red(),
-                                status_code.white(),
-                                header_match.red(),
+                                status_code.red(),
                                 tech_str.white().bold(),
                                 content_type,
                                 content_length,
@@ -732,12 +704,10 @@ pub async fn run_detector(
                         if sc >= 200 && sc < 300 {
                             // print the final results
                             println!(
-                                "{} {} {} {} {} {} {} {} {}",
+                                "{} {} {} {} {} {} {}",
                                 domain_result,
                                 title.cyan(),
-                                body_match.red(),
-                                status_code.green(),
-                                header_match.red(),
+                                status_code.red(),
                                 tech_str.white().bold(),
                                 content_type,
                                 content_length,
@@ -747,12 +717,10 @@ pub async fn run_detector(
                         if sc >= 300 && sc < 400 {
                             // print the final results
                             println!(
-                                "{} {} {} {} {} {} {} {} {}",
+                                "{} {} {} {} {} {} {}",
                                 domain_result,
                                 title.cyan(),
-                                body_match.red(),
-                                status_code.blue(),
-                                header_match.red(),
+                                status_code.red(),
                                 tech_str.white().bold(),
                                 content_type,
                                 content_length,
@@ -762,12 +730,10 @@ pub async fn run_detector(
                         if sc >= 400 && sc < 500 {
                             // print the final results
                             println!(
-                                "{} {} {} {} {} {} {} {} {}",
+                                "{} {} {} {} {} {} {}",
                                 domain_result,
                                 title.cyan(),
-                                body_match.red(),
-                                status_code.magenta(),
-                                header_match.red(),
+                                status_code.red(),
                                 tech_str.white().bold(),
                                 content_type,
                                 content_length,
@@ -777,12 +743,10 @@ pub async fn run_detector(
                         if sc >= 500 && sc < 600 {
                             // print the final results
                             println!(
-                                "{} {} {} {} {} {} {} {} {}",
+                                "{} {} {} {} {} {} {}",
                                 domain_result,
                                 title.cyan(),
-                                body_match.red(),
                                 status_code.red(),
-                                header_match.red(),
                                 tech_str.white().bold(),
                                 content_type,
                                 content_length,
@@ -792,12 +756,10 @@ pub async fn run_detector(
                     } else {
                         // print the final results
                         println!(
-                            "{} {} {} {} {} {} {} {} {}",
+                            "{} {} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
-                            body_match.red(),
-                            status_code.white(),
-                            header_match.red(),
+                            status_code.red(),
                             tech_str.white().bold(),
                             content_type,
                             content_length,
@@ -926,7 +888,6 @@ pub async fn run_detector(
                     }
                 }
 
-                let mut header_match = String::from("");
                 if !job_header_regex.is_empty() {
                     let headers = resp.headers();
                     for (k, v) in headers.iter() {
@@ -940,21 +901,9 @@ pub async fn run_detector(
                             Ok(re) => re,
                             Err(_) => continue,
                         };
-                        for m_str in re.captures_iter(&header_str) {
-                            if m_str.len() > 0 {
-                                let str_match = m_str[m_str.len() - 1].to_string();
-                                if !str_match.is_empty() {
-                                    header_match.push_str("[");
-                                    header_match.push_str(&str_match);
-                                    header_match.push_str("]");
-                                    break;
-                                }
-                            }
+                        if !re.is_match(&header_str)  {
+                            continue;
                         }
-                    }
-
-                    if header_match.is_empty() {
-                        continue;
                     }
                 }
 
@@ -1016,21 +965,9 @@ pub async fn run_detector(
                     }
                 }
 
-                let mut body_match = String::from("");
                 if !job_body_regex.is_empty() {
-                    for m_str in re.captures_iter(&body) {
-                        if m_str.len() > 0 {
-                            let str_match = m_str[m_str.len() - 1].to_string();
-                            if !str_match.is_empty() {
-                                body_match.push_str("[");
-                                body_match.push_str(&str_match);
-                                body_match.push_str("]");
-                                break;
-                            }
-                        }
-                    }
-                    if body_match.is_empty() {
-                        continue;
+                    if !re.is_match(&body) {
+                       continue;
                     }
                 }
 
@@ -1043,12 +980,10 @@ pub async fn run_detector(
                     if sc >= 100 && sc < 200 {
                         // print the final results
                         println!(
-                            "{} {} {} {} {} {} {} {} {}",
+                            "{} {} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
-                            body_match.red(),
                             status_code.white(),
-                            header_match.red(),
                             tech_str.white().bold(),
                             content_type,
                             content_length,
@@ -1058,12 +993,10 @@ pub async fn run_detector(
                     if sc >= 200 && sc < 300 {
                         // print the final results
                         println!(
-                            "{} {} {} {} {} {} {} {} {}",
+                            "{} {} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
-                            body_match.red(),
-                            status_code.green(),
-                            header_match.red(),
+                            status_code.white(),
                             tech_str.white().bold(),
                             content_type,
                             content_length,
@@ -1073,12 +1006,10 @@ pub async fn run_detector(
                     if sc >= 300 && sc < 400 {
                         // print the final results
                         println!(
-                            "{} {} {} {} {} {} {} {} {}",
+                            "{} {} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
-                            body_match.red(),
-                            status_code.blue(),
-                            header_match.red(),
+                            status_code.white(),
                             tech_str.white().bold(),
                             content_type,
                             content_length,
@@ -1088,12 +1019,10 @@ pub async fn run_detector(
                     if sc >= 400 && sc < 500 {
                         // print the final results
                         println!(
-                            "{} {} {} {} {} {} {} {} {}",
+                            "{} {} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
-                            body_match.red(),
-                            status_code.magenta(),
-                            header_match.red(),
+                            status_code.white(),
                             tech_str.white().bold(),
                             content_type,
                             content_length,
@@ -1103,12 +1032,10 @@ pub async fn run_detector(
                     if sc >= 500 && sc < 600 {
                         // print the final results
                         println!(
-                            "{} {} {} {} {} {} {} {} {}",
+                            "{} {} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
-                            body_match.red(),
-                            status_code.red(),
-                            header_match.red(),
+                            status_code.white(),
                             tech_str.white().bold(),
                             content_type,
                             content_length,
@@ -1118,12 +1045,10 @@ pub async fn run_detector(
                 } else {
                     // print the final results
                     println!(
-                        "{} {} {} {} {} {} {} {} {}",
+                        "{} {} {} {} {} {} {}",
                         domain_result,
                         title.cyan(),
-                        body_match.red(),
                         status_code.white(),
-                        header_match.red(),
                         tech_str.white().bold(),
                         content_type,
                         content_length,
