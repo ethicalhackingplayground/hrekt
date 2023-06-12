@@ -624,7 +624,7 @@ pub async fn run_detector(
                         }
 
                         if header_match.is_empty() {
-                            continue;
+                            return;
                         }
                     }
 
@@ -704,7 +704,7 @@ pub async fn run_detector(
                         }
 
                         if body_match.is_empty() {
-                            continue;
+                            return;
                         }
                     }
 
