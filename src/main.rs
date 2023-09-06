@@ -240,7 +240,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         .get_one::<String>("concurrency")
         .map(|s| s.to_string())
     {
-        Some(n) => n.parse::<i32>().unwrap(),
+        Some(n) => match n.parse::<i32>() {
+            Ok(n) => n,
+            Err(_) => 100,
+        },
         None => {
             println!("{}", "could not parse concurrency, using default of 100");
             100
@@ -248,12 +251,18 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     };
 
     let timeout = match matches.get_one::<String>("timeout").map(|s| s.to_string()) {
-        Some(timeout) => timeout.parse::<usize>().unwrap(),
+        Some(timeout) => match timeout.parse::<usize>() {
+            Ok(timeout) => timeout,
+            Err(_) => 3,
+        },
         None => 3,
     };
 
     let w: usize = match matches.get_one::<String>("workers").map(|s| s.to_string()) {
-        Some(w) => w.parse::<usize>().unwrap(),
+        Some(w) => match w.parse::<usize>() {
+            Ok(w) => w,
+            Err(_) => 1,
+        },
         None => {
             println!("{}", "could not parse workers, using default of 1");
             1
@@ -694,7 +703,7 @@ pub async fn run_detector(
                                 "{} {} {} {} {} {} {}",
                                 domain_result,
                                 title.cyan(),
-                                status_code.red(),
+                                status_code.white(),
                                 tech_str.white().bold(),
                                 content_type,
                                 content_length,
@@ -707,7 +716,7 @@ pub async fn run_detector(
                                 "{} {} {} {} {} {} {}",
                                 domain_result,
                                 title.cyan(),
-                                status_code.red(),
+                                status_code.green(),
                                 tech_str.white().bold(),
                                 content_type,
                                 content_length,
@@ -720,7 +729,7 @@ pub async fn run_detector(
                                 "{} {} {} {} {} {} {}",
                                 domain_result,
                                 title.cyan(),
-                                status_code.red(),
+                                status_code.blue(),
                                 tech_str.white().bold(),
                                 content_type,
                                 content_length,
@@ -733,7 +742,7 @@ pub async fn run_detector(
                                 "{} {} {} {} {} {} {}",
                                 domain_result,
                                 title.cyan(),
-                                status_code.red(),
+                                status_code.magenta(),
                                 tech_str.white().bold(),
                                 content_type,
                                 content_length,
@@ -901,7 +910,7 @@ pub async fn run_detector(
                             Ok(re) => re,
                             Err(_) => continue,
                         };
-                        if !re.is_match(&header_str)  {
+                        if !re.is_match(&header_str) {
                             continue;
                         }
                     }
@@ -967,7 +976,7 @@ pub async fn run_detector(
 
                 if !job_body_regex.is_empty() {
                     if !re.is_match(&body) {
-                       continue;
+                        continue;
                     }
                 }
 
@@ -996,7 +1005,7 @@ pub async fn run_detector(
                             "{} {} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
-                            status_code.white(),
+                            status_code.green(),
                             tech_str.white().bold(),
                             content_type,
                             content_length,
@@ -1009,7 +1018,7 @@ pub async fn run_detector(
                             "{} {} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
-                            status_code.white(),
+                            status_code.blue(),
                             tech_str.white().bold(),
                             content_type,
                             content_length,
@@ -1022,7 +1031,7 @@ pub async fn run_detector(
                             "{} {} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
-                            status_code.white(),
+                            status_code.magenta(),
                             tech_str.white().bold(),
                             content_type,
                             content_length,
@@ -1035,7 +1044,7 @@ pub async fn run_detector(
                             "{} {} {} {} {} {} {}",
                             domain_result,
                             title.cyan(),
-                            status_code.white(),
+                            status_code.red(),
                             tech_str.white().bold(),
                             content_type,
                             content_length,
