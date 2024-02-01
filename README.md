@@ -62,7 +62,7 @@ If you want to install hrekt on Windows, you are required to install `perl` & `r
 Then you should be able to run
 
 ```bash
-cargo install -r
+cargo install --path .
 ```
 
 Which will than build and compile the binary to `target/release/hrekt.exe`
